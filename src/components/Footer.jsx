@@ -1,123 +1,40 @@
 import { Link, useMatch } from 'react-router-dom';
-import { RUTA_CATALOGO_CONECTADO } from '../context/catalogo';
-import { useSesionConectada } from '../context/sesionConectada';
-
+import { RUTA_CATALOGO_CONECTADO, RUTA_CONTACTO_CONECTADO, RUTA_ORDENES_CONECTADAS } from '../context/catalogo.js';
+import { useSesionConectada } from '../context/sesionConectada.js';
 
 export default function Footer() {
-    const conectado = useMatch(`${RUTA_CATALOGO_CONECTADO}/*`);
     const { usuario, demostracion } = useSesionConectada();
+    const rutaConectada = useMatch(RUTA_CATALOGO_CONECTADO + '/*');
+    const conectado = demostracion || Boolean(rutaConectada);
     const vendedor = conectado && usuario?.rol === 'VENDEDOR';
+    const productos = conectado ? RUTA_CATALOGO_CONECTADO : '/productos';
 
-    return (
-
-        <footer className="bg-dark text-white text-center p-4">
-
-            <div className="container">
-
-                <div className="row justify-content-between">
-
-                    <div className="col-md-5 col-lg-4">
-
-                        <h3>
-                            AutoCare
-                            <span className="text-danger">
-                                Pro
-                            </span>
-                        </h3>
-
-                        <p>
-                            Dirección: Calle Falsa 123, Ciudad, País
-                        </p>
-
-                        <p>
-                            Teléfono: +1 234 567 890
-                        </p>
-
-                    </div>
-
-
-                    {!vendedor && <div className="col-md-5 col-lg-4">
-
-                        <h3>
-                            Redes Sociales
-                        </h3>
-
-                        <p>
-                            Síguenos en nuestras redes sociales para más
-                            información y ofertas especiales.
-                        </p>
-
-
-                        <div className="social-icons">
-
-                            <a
-                                href="https://www.facebook.com"
-                                target="_blank"
-                                rel="noreferrer"
-                                aria-label="Facebook"
-                            >
-                                <i className="bi bi-facebook fs-2 me-3"></i>
-                            </a>
-
-
-                            <a
-                                href="https://x.com"
-                                target="_blank"
-                                rel="noreferrer"
-                                aria-label="X"
-                            >
-                                <i className="bi bi-twitter fs-2 me-3"></i>
-                            </a>
-
-
-                            <a
-                                href="https://www.instagram.com"
-                                target="_blank"
-                                rel="noreferrer"
-                                aria-label="Instagram"
-                            >
-                                <i className="bi bi-instagram fs-2 me-3"></i>
-                            </a>
-
-
-                            <a
-                                href="https://www.linkedin.com"
-                                target="_blank"
-                                rel="noreferrer"
-                                aria-label="LinkedIn"
-                            >
-                                <i className="bi bi-linkedin fs-2"></i>
-                            </a>
-
-                        </div>
-
-                    </div>}
-
+    return <footer className="tienda-footer">
+        <div className="tienda-contenedor">
+            <div className="footer-distribucion">
+                <div>
+                    <Link className="tienda-marca" to={productos}><span className="marca-icono"><i className="bi bi-speedometer2" aria-hidden="true" /></span>
+                        AutoCare<span className="marca-pro">Pro</span></Link>
+                    <p>Repuestos y accesorios automotrices.</p>
+                    <p className="footer-nota">Tienda demostrativa · Compras y pagos simulados.</p>
                 </div>
-
+                <div>
+                    <h2>Tienda</h2>
+                    <Link to={productos}>Explorar productos</Link>
+                    {vendedor ? <Link to={RUTA_ORDENES_CONECTADAS}>Consultar órdenes</Link> : <>
+                        <Link to={conectado ? productos + '/categorias' : '/categorias'}>Ver categorías</Link>
+                        <Link to={conectado ? productos + '/ofertas' : '/ofertas'}>Ver promociones</Link>
+                    </>}
+                </div>
+                {!vendedor && <div>
+                    <h2>Contacto demostrativo</h2>
+                    <p><i className="bi bi-geo-alt" aria-hidden="true" /> Santiago, Región Metropolitana</p>
+                    <p><i className="bi bi-clock" aria-hidden="true" /> Lun–vie, 09:00–18:00</p>
+                    <p><i className="bi bi-envelope" aria-hidden="true" /> contacto@autocarepro.example</p>
+                    <Link to={conectado ? RUTA_CONTACTO_CONECTADO : '/contacto'}>Formulario de contacto</Link>
+                </div>}
             </div>
-
-
-            <hr />
-
-
-            <p>
-                &copy; 2024 AutoCare Pro. Todos los derechos reservados.
-            </p>
-
-
-            {!conectado && !demostracion && <div className="mt-2">
-
-                <Link
-                    to="/admin"
-                    className="text-secondary text-decoration-none small"
-                >
-                    Ingreso Administrador
-                </Link>
-
-            </div>}
-
-        </footer>
-
-    );
+            <p className="footer-derechos">© {new Date().getFullYear()} AutoCarePro</p>
+        </div>
+    </footer>;
 }

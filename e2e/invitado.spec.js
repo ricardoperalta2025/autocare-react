@@ -3,7 +3,7 @@ import { ACEITE, CLAVE_FICTICIA, CUENTAS, ENTREGA, FILTRO, IDS, RUTAS } from './
 
 test('INVITADO · explora catálogo, filtros, categorías, ofertas y detalle', async ({ page }, testInfo) => {
     await page.goto(RUTAS.catalogo);
-    await expect(page.getByText('2 productos disponibles')).toBeVisible();
+    await expect(page.getByText('2 productos encontrados')).toBeVisible();
     await page.getByLabel('Ordenar productos').selectOption('precio-menor');
     const productos = page.getByRole('heading', { name: /Aceite de prueba|Filtro de prueba/ });
     await expect(productos).toHaveText([FILTRO, ACEITE]);
@@ -12,11 +12,11 @@ test('INVITADO · explora catálogo, filtros, categorías, ofertas y detalle', a
     await expect(page.getByText(FILTRO, { exact: true })).toBeVisible();
     await expect(page.getByText(ACEITE, { exact: true })).toHaveCount(0);
     await buscar.fill('ningún resultado 123');
-    await expect(page.getByText('0 productos disponibles')).toBeVisible();
+    await expect(page.getByText('0 productos encontrados')).toBeVisible();
     await page.getByRole('button', { name: 'Limpiar filtros' }).click();
     await page.getByRole('button', { name: 'TEST-Aceites' }).click();
     await expect(page.getByRole('button', { name: 'TEST-Aceites' })).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.getByText('1 productos disponibles')).toBeVisible();
+    await expect(page.getByText('1 producto encontrado')).toBeVisible();
     await capturar(page, testInfo, 'invitado-filtro-catalogo-simulado');
 
     const nav = page.getByRole('navigation');
@@ -25,7 +25,7 @@ test('INVITADO · explora catálogo, filtros, categorías, ofertas y detalle', a
     await nav.getByRole('link', { name: 'Ofertas' }).click();
     await expect(page.getByText(ACEITE, { exact: true })).toBeVisible();
     await expect(page.getByText(FILTRO, { exact: true })).toHaveCount(0);
-    await page.locator('a[href="' + RUTAS.catalogo + '/' + IDS.aceite + '"]').click();
+    await page.getByRole('link', { name: 'Ver producto' }).click();
     await expect(page.getByRole('heading', { name: ACEITE })).toBeVisible();
     await expect(page.getByText('Aceite sintético para motor')).toBeVisible();
 });
@@ -47,6 +47,7 @@ test('INVITADO · pagina 50 productos y carga las imágenes del catálogo y su r
 
     await page.goto(RUTAS.catalogo);
     await expect(page.getByText('Mostrando 1–9 de 50 productos')).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Explorar productos' }).filter({ has: page.locator('.bi-arrow-down') })).toBeVisible();
     const imagenes = page.locator('main img');
     await expect(imagenes).toHaveCount(9);
     await imagenes.evaluateAll((elementos) => Promise.all(elementos.map((imagen) => imagen.decode())));
@@ -60,17 +61,19 @@ test('INVITADO · pagina 50 productos y carga las imágenes del catálogo y su r
 
     await page.getByRole('button', { name: 'Siguiente' }).click();
     await expect(page.getByText('Mostrando 10–18 de 50 productos')).toBeVisible();
+    await expect(page.locator('.tienda-portada')).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Catálogo de productos' })).toBeInViewport();
     const imagenAgotado = page.getByRole('img', { name: agotado.nombre, exact: true });
     await expect(imagenAgotado).toHaveAttribute('src', '/images/producto-sin-imagen.webp');
-    expect(await imagenAgotado.evaluate((imagen) => imagen.decode().then(() => imagen.naturalWidth))).toBeGreaterThan(0);
+    await expect.poll(() => imagenAgotado.evaluate((imagen) => imagen.naturalWidth)).toBeGreaterThan(0);
     const tarjeta = page.locator('.card').filter({ has: imagenAgotado });
     await expect(tarjeta.getByText('Agotado', { exact: true })).toBeVisible();
-    await expect(tarjeta.getByRole('button', { name: /al carrito conectado/ })).toBeDisabled();
+    await expect(tarjeta.getByRole('button', { name: /al carrito/ })).toBeDisabled();
     await tarjeta.getByRole('link', { name: 'Ver detalle' }).click();
     await expect(page.getByRole('heading', { name: agotado.nombre })).toBeVisible();
     await expect(imagenAgotado).toHaveAttribute('src', '/images/producto-sin-imagen.webp');
-    expect(await imagenAgotado.evaluate((imagen) => imagen.decode().then(() => imagen.naturalWidth))).toBeGreaterThan(0);
-    await expect(page.getByRole('button', { name: 'Agregar al carrito conectado' })).toBeDisabled();
+    await expect.poll(() => imagenAgotado.evaluate((imagen) => imagen.naturalWidth)).toBeGreaterThan(0);
+    await expect(page.getByRole('button', { name: 'Agregar al carrito' })).toBeDisabled();
 
     await page.goBack();
     await expect(page.getByRole('button', { name: 'Página 2' })).toHaveAttribute('aria-current', 'page');
@@ -107,13 +110,51 @@ test('INVITADO · abre una foto por SKU y pasa al respaldo de categoría si fall
     expect(await imagen.evaluate((elemento) => elemento.decode().then(() => elemento.naturalWidth))).toBeGreaterThan(0);
 });
 
-test('INVITADO · arma un carrito conectado y debe iniciar sesión para comprar', async ({ page, api }) => {
+test('INVITADO · usa el menú móvil y agrega varias unidades sin mover el inventario', async ({ page, api }, testInfo) => {
+    await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(RUTAS.catalogo);
-    await page.getByRole('button', { name: 'Agregar ' + ACEITE + ' al carrito conectado' }).click();
-    await page.getByRole('link', { name: 'Carrito conectado' }).click();
+    const nav = page.getByRole('navigation', { name: 'Navegación principal' });
+    const menu = nav.getByRole('button', { name: 'Abrir navegación' });
+    await expect(nav.getByRole('link', { name: 'Categorías' })).toHaveCount(0);
+    await menu.click();
+    await expect(nav.getByRole('link', { name: 'Categorías' })).toBeVisible();
+    await nav.getByRole('link', { name: 'Productos', exact: true }).click();
+    await expect(menu).toHaveAttribute('aria-expanded', 'false');
+    await page.getByRole('link', { name: 'Ver imagen y detalle de ' + ACEITE, exact: true }).click();
+    await expect(page.getByRole('heading', { name: ACEITE })).toBeVisible();
+    await expect(page.getByText(/Stock disponible:/)).toHaveCount(0);
+    await page.getByRole('spinbutton', { name: 'Cantidad' }).fill('5');
+    await expect(page.getByRole('alert')).toContainText('No puedes agregar más unidades');
+    await expect(page.getByRole('spinbutton', { name: 'Cantidad' })).toHaveValue('1');
+    await page.getByRole('button', { name: 'Aumentar cantidad de ' + ACEITE }).click();
+    await page.getByRole('button', { name: 'Agregar al carrito' }).click();
+    const aviso = page.getByRole('status').filter({ hasText: 'Agregado al carrito' });
+    await expect(aviso).toContainText(ACEITE + ' × 2');
+    await aviso.getByRole('link', { name: 'Ver carrito' }).click();
+    await expect(page.getByText('Cantidad total: 2')).toBeVisible();
+    const sumar = page.getByRole('button', { name: 'Aumentar cantidad de ' + ACEITE });
+    await sumar.click();
+    await sumar.click();
+    await sumar.click();
+    await expect(page.getByRole('alert')).toContainText('límite de unidades');
+    await expect(page.getByRole('spinbutton')).toHaveValue('4');
+    expect(api.productos.find((producto) => producto.id === IDS.aceite).stock).toBe(4);
+    expect(api.compras).toHaveLength(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+    await capturar(page, testInfo, 'carrito-movil-simulado');
+    await page.getByRole('link', { name: 'Seguir comprando', exact: true }).click();
+    await page.getByRole('button', { name: 'Agregar ' + ACEITE + ' al carrito' }).click();
+    await expect(page.getByRole('alert')).toContainText('todas las unidades disponibles');
+    await expect(page.getByText('Agregado al carrito', { exact: true })).toHaveCount(0);
+});
+
+test('INVITADO · arma un carrito y debe iniciar sesión para comprar', async ({ page, api }) => {
+    await page.goto(RUTAS.catalogo);
+    await page.getByRole('button', { name: 'Agregar ' + ACEITE + ' al carrito' }).click();
+    await page.getByRole('link', { name: 'Carrito', exact: true }).click();
     await expect(page.getByText('Cantidad total: 1')).toBeVisible();
     await page.getByRole('link', { name: 'Continuar al checkout' }).click();
-    await expect(page.getByRole('heading', { name: 'Iniciar sesión conectada' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Iniciar sesión' })).toBeVisible();
     expect(api.compras).toHaveLength(0);
     await page.goto(RUTAS.admin);
     await expect(page).toHaveURL(new RegExp(RUTAS.login + '$'));
@@ -122,7 +163,7 @@ test('INVITADO · arma un carrito conectado y debe iniciar sesión para comprar'
     await page.getByLabel('Contraseña', { exact: true }).fill(CLAVE_FICTICIA);
     await page.getByRole('button', { name: 'Ingresar' }).click();
     await expect(page.getByRole('alert')).toContainText('Tu rol no tiene permiso');
-    await page.getByRole('link', { name: 'Carrito conectado' }).click();
+    await page.getByRole('link', { name: 'Carrito', exact: true }).click();
     await page.getByRole('button', { name: 'Revisar importación del carrito sin sesión' }).click();
     await page.getByRole('button', { name: 'Confirmar importación' }).click();
     await expect(page.getByText('Cantidad total: 1')).toBeVisible();

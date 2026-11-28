@@ -1,11 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Link, Outlet } from 'react-router-dom';
-import { useSesionConectada } from '../context/sesionConectada';
+import { Outlet } from 'react-router-dom';
 import { obtenerCategoriasApi, obtenerProductosApi } from '../services/catalogoApi';
 
 export default function CatalogoConectado() {
-    const { usuario, demostracion } = useSesionConectada();
-    const vendedor = usuario?.rol === 'VENDEDOR';
     const [catalogo, setCatalogo] = useState(null);
     const [error, setError] = useState('');
     const [intento, setIntento] = useState(0);
@@ -41,28 +38,16 @@ export default function CatalogoConectado() {
 
     return (
         <>
-            <div className="container mt-4">
-                <div className="alert alert-info d-flex flex-wrap align-items-center justify-content-between gap-2">
-                    <div>
-                        <strong>Catálogo conectado</strong>
-                        {!vendedor && <div>Agrega productos y revisa tu compra conectada.</div>}
-                    </div>
-                    {!vendedor && !demostracion && <Link className="btn btn-outline-secondary btn-sm" to="/productos">
-                        Volver al catálogo local
-                    </Link>}
-                </div>
-
-                {error && (
+            {!catalogo && <main className="tienda-contenedor tienda-pagina">
+                {error ? (
                     <div className="alert alert-danger" role="alert">
-                        <p>No se pudo cargar el catálogo conectado. {error}</p>
+                        <p>No se pudo cargar el catálogo. {error}</p>
                         <button className="btn btn-outline-danger btn-sm" onClick={reintentar}>
                             Reintentar
                         </button>
                     </div>
-                )}
-
-                {!catalogo && !error && <p role="status">Cargando catálogo conectado…</p>}
-            </div>
+                ) : <p role="status">Cargando catálogo…</p>}
+            </main>}
 
             {catalogo && <Outlet context={catalogo} />}
         </>

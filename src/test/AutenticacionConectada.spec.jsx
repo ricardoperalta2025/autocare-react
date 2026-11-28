@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import Navbar from '../components/Navbar.jsx';
 import RutaConectada from '../components/RutaConectada.jsx';
@@ -233,7 +233,7 @@ describe('Autenticación conectada', () => {
         guardarSesion({ expiraEn: Date.now() - 1000 });
         const fetchSimulado = spyOn(window, 'fetch');
         montar(RUTA_ADMIN_CONECTADA);
-        expect(await screen.findByRole('heading', { name: 'Iniciar sesión conectada' })).toBeTruthy();
+        expect(await screen.findByRole('heading', { name: 'Iniciar sesión' })).toBeTruthy();
         expect(fetchSimulado).not.toHaveBeenCalled();
         expect(sessionStorage.getItem(CLAVE_SESION_CONECTADA)).toBeNull();
     });
@@ -253,7 +253,7 @@ describe('Autenticación conectada', () => {
 
         estado = 401;
         fireEvent.click(consultar);
-        expect(await screen.findByRole('heading', { name: 'Iniciar sesión conectada' })).toBeTruthy();
+        expect(await screen.findByRole('heading', { name: 'Iniciar sesión' })).toBeTruthy();
         expect(sessionStorage.getItem(CLAVE_SESION_CONECTADA)).toBeNull();
     });
 
@@ -271,7 +271,7 @@ describe('Autenticación conectada', () => {
         montar(`${RUTA_CATALOGO_CONECTADO}/perfil`);
         fireEvent.click(await screen.findByRole('button', { name: 'Consultar recurso protegido' }));
         fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
-        fireEvent.click(screen.getByRole('link', { name: 'Iniciar Sesión' }));
+        fireEvent.click(within(screen.getByRole('navigation', { name: 'Navegación principal' })).getByRole('link', { name: 'Iniciar sesión' }));
         ingresar();
         expect(await screen.findByRole('link', { name: 'Otra cuenta' })).toBeTruthy();
 
@@ -283,7 +283,7 @@ describe('Autenticación conectada', () => {
     for (const [rol, ruta, titulo] of [
         ['ADMIN', RUTA_ADMIN_CONECTADA, 'Panel protegido'],
         ['CLIENTE', RUTA_CHECKOUT_CONECTADO, 'Checkout protegido'],
-        ['VENDEDOR', RUTA_ORDENES_CONECTADAS, 'Órdenes conectadas']
+        ['VENDEDOR', RUTA_ORDENES_CONECTADAS, 'Órdenes']
     ]) {
         it(`habilita la ruta correspondiente al rol ${rol} validado por /me`, async () => {
             guardarSesion();
@@ -302,8 +302,8 @@ describe('Autenticación conectada', () => {
         montar(RUTA_CATALOGO_CONECTADO);
         await screen.findByRole('button', { name: 'Cerrar sesión' });
         expect(await screen.findByText(producto.nombre)).toBeTruthy();
-        expect(screen.queryByRole('button', { name: /Agregar.*al carrito conectado/ })).toBeNull();
-        expect(screen.queryByRole('link', { name: 'Carrito conectado' })).toBeNull();
+        expect(screen.queryByRole('button', { name: /Agregar.*al carrito/ })).toBeNull();
+        expect(screen.queryByRole('link', { name: 'Carrito' })).toBeNull();
         expect(screen.queryByRole('link', { name: 'Administración' })).toBeNull();
         expect(screen.getByRole('link', { name: 'Órdenes' }).getAttribute('href')).toBe(RUTA_ORDENES_CONECTADAS);
     });

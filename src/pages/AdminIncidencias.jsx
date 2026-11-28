@@ -1,169 +1,109 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-    obtenerIncidencias,
-    actualizarEstadoIncidencia
-} from '../services/incidenciasService';
-
+import { obtenerIncidencias, actualizarEstadoIncidencia } from '../services/incidenciasService.js';
 import { EstadoCatalogoAdmin } from '../components/EstadoCatalogoAdmin.jsx';
 import EstadoEscrituraConectada from '../components/EstadoEscrituraConectada.jsx';
+import { EncabezadoAdmin, EtiquetaAdmin, PaginacionAdmin, ReferenciaAdmin, usePaginaAdmin } from '../components/AdminInterfaz.jsx';
 import { useConsultaConectada, useEscrituraConectada } from '../hooks/useOperacionesConectadas.js';
-import { formatearRegistro, listarIncidenciasApi, resolverIncidenciaApi } from '../services/operacionesApi.js';
+import { actualizarIncidenciaApi, formatearRegistro, listarIncidenciasApi, resolverIncidenciaApi } from '../services/operacionesApi.js';
 import { RUTA_ORDENES_CONECTADAS } from '../context/catalogo.js';
+
+const estados = { PENDIENTE: 'Pendiente', EN_REVISION: 'En revisión', RESUELTA: 'Resuelta' };
 
 export default function AdminIncidencias({ conectado = false }) {
     const consulta = useConsultaConectada(conectado, listarIncidenciasApi);
     const escritura = useEscrituraConectada();
-    const incidencias = conectado ? (consulta.datos ?? []).map(formatearRegistro) : obtenerIncidencias();
+    const [local, setLocal] = useState(() => conectado ? [] : obtenerIncidencias());
+    const [filtro, setFiltro] = useState('');
+    const [activa, setActiva] = useState(null);
+    const [aviso, setAviso] = useState('');
+    const incidencias = conectado ? (consulta.datos ?? []).map(formatearRegistro) : local;
+    const resultados = incidencias.filter((incidencia) => !filtro || incidencia.estado === filtro);
+    const paginacion = usePaginaAdmin(resultados);
 
-    async function marcarResuelta(id) {
-
-        const confirmar = window.confirm(
-            '¿Deseas marcar esta incidencia como resuelta?'
-        );
-
-        if (!confirmar) {
-            return;
-        }
-
+    async function resolver(id) {
+        if (!window.confirm('¿Deseas marcar esta incidencia como resuelta?')) return;
+        setAviso('');
         if (conectado) {
-            if (await escritura.ejecutar(resolverIncidenciaApi, id)) consulta.recargar();
-            return;
+            if (!await escritura.ejecutar(resolverIncidenciaApi, id)) return;
+            consulta.recargar();
+        } else {
+            actualizarEstadoIncidencia(id, 'Resuelta');
+            setLocal(obtenerIncidencias());
         }
-
-        actualizarEstadoIncidencia(
-            id,
-            'Resuelta'
-        );
-
-        window.location.reload();
+        setAviso('Incidencia resuelta.');
     }
 
-    return (
-        <main className="container my-5">
+    async function guardar(id, datos) {
+        setAviso('');
+        if (await escritura.ejecutar(actualizarIncidenciaApi, id, datos)) {
+            consulta.recargar();
+            setAviso('Incidencia actualizada.');
+        }
+    }
 
-            <div className="mb-4">
-
-                <h1 className="mb-1">
-                    Administración de Incidencias
-                </h1>
-
-                <p className="text-muted mb-0">
-                    Incidencias registradas: {conectado && !consulta.datos ? '—' : incidencias.length}
-                </p>
-
-            </div>
-
-            {conectado && <><EstadoCatalogoAdmin consulta={consulta} /><EstadoEscrituraConectada escritura={escritura} /></>}
-            {(!conectado || consulta.datos) && (incidencias.length === 0 ? (
-
-                <div className="alert alert-info">
-                    No existen incidencias registradas.
-                </div>
-
-            ) : (
-
-                <div className="card shadow-sm">
-
-                    <div className="card-body">
-
-                        <div className="table-responsive">
-
-                            <table className="table align-middle">
-
-                                <thead>
-
-                                    <tr>
-                                        <th>ID</th>
-                                        <th>Fecha</th>
-                                        <th>Orden</th>
-                                        <th>Asunto</th>
-                                        <th>Descripción</th>
-                                        <th>Estado</th>
-                                        <th>Acciones</th>
-                                    </tr>
-
-                                </thead>
-
-                                <tbody>
-
-                                    {incidencias.map((incidencia) => (
-
-                                        <tr key={incidencia.id}>
-
-                                            <td>
-                                                #{incidencia.id}
-                                            </td>
-
-                                            <td>
-                                                {incidencia.fecha}
-                                            </td>
-
-                                            <td>
-
-                                                <Link
-                                                    to={`${conectado ? RUTA_ORDENES_CONECTADAS : '/ordenes'}/${incidencia.ordenId}`}
-                                                >
-                                                    #{incidencia.ordenId}
-                                                </Link>
-
-                                            </td>
-
-                                            <td>
-                                                {incidencia.asunto}
-                                            </td>
-
-                                            <td>
-                                                {incidencia.descripcion}
-                                            </td>
-
-                                            <td>
-
-                                                <span
-                                                    className={
-                                                        incidencia.estado === 'Resuelta'
-                                                            ? 'badge text-bg-success'
-                                                            : 'badge text-bg-warning'
-                                                    }
-                                                >
-                                                    {incidencia.estado}
-                                                </span>
-
-                                            </td>
-
-                                            <td>
-
-                                                {incidencia.estado === 'Pendiente' && (
-
-                                                    <button
-                                                        className="btn btn-outline-success btn-sm"
-                                                        disabled={conectado && (!escritura.habilitada || escritura.procesando)}
-                                                        onClick={() =>
-                                                            marcarResuelta(incidencia.id)
-                                                        }
-                                                    >
-                                                        Marcar resuelta
-                                                    </button>
-
-                                                )}
-
-                                            </td>
-
-                                        </tr>
-
-                                    ))}
-
-                                </tbody>
-
-                            </table>
-
+    return <main className="tienda-contenedor tienda-pagina admin-pagina">
+        <EncabezadoAdmin titulo="Administración de Incidencias" descripcion={`Incidencias registradas: ${conectado && !consulta.datos ? '—' : incidencias.length}`} />
+        {conectado && <EstadoCatalogoAdmin consulta={consulta} />}
+        {conectado && <EstadoEscrituraConectada escritura={escritura} mensajeBloqueo="La gestión de incidencias no está disponible por el momento." />}
+        {aviso && <p className="alert alert-success" role="status">{aviso}</p>}
+        {(!conectado || consulta.datos) && <section className="tienda-panel">
+            <label className="d-inline-block mb-2">Filtrar incidencias por estado
+                <select className="form-select" value={filtro} onChange={(evento) => {
+                    setFiltro(evento.target.value);
+                    paginacion.setPagina(1);
+                }}><option value="">Todos</option>{Object.values(estados).filter((estado) => conectado || estado !== 'En revisión')
+                    .map((estado) => <option key={estado}>{estado}</option>)}</select>
+            </label>
+            {resultados.length ? <>
+                {paginacion.filas.map((incidencia) => <details className="admin-incidencia" key={incidencia.id} open={activa === incidencia.id}>
+                    <summary onClick={(evento) => {
+                        evento.preventDefault();
+                        setActiva(activa === incidencia.id ? null : incidencia.id);
+                    }}><strong>{incidencia.asunto}</strong> <EtiquetaAdmin estado={incidencia.estado} /></summary>
+                    <div className="admin-incidencia-datos">
+                        <div className="d-flex flex-wrap gap-2 mb-2">
+                            <span className="admin-fecha">{incidencia.fecha}</span>
+                            {incidencia.ordenId && <Link to={(conectado ? RUTA_ORDENES_CONECTADAS : '/ordenes') + '/' + incidencia.ordenId}>
+                                Ver orden <ReferenciaAdmin id={incidencia.ordenId} />
+                            </Link>}
                         </div>
-
+                        <p>{incidencia.descripcion}</p>
+                        {conectado && <FormularioGestion key={`${incidencia.estado}:${incidencia.fechaActualizacion ?? ''}`}
+                            incidencia={incidencia} escritura={escritura} guardar={guardar} />}
+                        {incidencia.estado !== 'Resuelta' && <button type="button" className="btn btn-outline-success mt-2"
+                            disabled={conectado && (!escritura.habilitada || escritura.procesando)}
+                            onClick={() => resolver(incidencia.id)}>Marcar resuelta</button>}
                     </div>
+                </details>)}
+                <PaginacionAdmin datos={paginacion} seccion="incidencias" />
+            </> : <p className="mb-0 text-body-secondary">No hay incidencias que coincidan con el estado.</p>}
+        </section>}
+    </main>;
+}
 
-                </div>
-
-            ))}
-
-        </main>
-    );
+function FormularioGestion({ incidencia, escritura, guardar }) {
+    const inicial = Object.keys(estados).find((estado) => estados[estado] === incidencia.estado) ?? 'PENDIENTE';
+    const [estado, setEstado] = useState(inicial);
+    const [respuesta, setRespuesta] = useState(incidencia.respuestaAdmin ?? '');
+    return <form onSubmit={(evento) => {
+        evento.preventDefault();
+        const datos = { estado };
+        if (respuesta !== (incidencia.respuestaAdmin ?? '')) datos.respuestaAdmin = respuesta;
+        guardar(incidencia.id, datos);
+    }}>
+        <fieldset disabled={!escritura.habilitada || escritura.procesando} className="row g-2">
+            <label className="col-md-4">Estado
+                <select className="form-select" value={estado} onChange={(evento) => setEstado(evento.target.value)}>
+                    {Object.entries(estados).slice(Object.keys(estados).indexOf(inicial)).map(([valor, nombre]) =>
+                        <option value={valor} key={valor}>{nombre}</option>)}
+                </select>
+            </label>
+            <label className="col-md-8">Respuesta administrativa
+                <textarea className="form-control" rows={3} maxLength={2000} value={respuesta}
+                    onChange={(evento) => setRespuesta(evento.target.value)} />
+            </label>
+            <div className="col-12"><button className="btn btn-danger" type="submit">Guardar gestión</button></div>
+        </fieldset>
+    </form>;
 }

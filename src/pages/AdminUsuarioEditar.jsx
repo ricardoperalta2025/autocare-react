@@ -1,277 +1,63 @@
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-
-import {
-    obtenerUsuarioPorId,
-    actualizarUsuarioAdmin
-} from '../services/usuariosService';
-
-
-import { useBaseAdmin } from '../context/catalogo';
-
+import { useNavigate, useParams } from 'react-router-dom';
+import { obtenerUsuarioPorId, actualizarUsuarioAdmin } from '../services/usuariosService.js';
+import { useBaseAdmin } from '../context/catalogo.js';
 import { EstadoCatalogoAdmin } from '../components/EstadoCatalogoAdmin.jsx';
+import { EncabezadoAdmin } from '../components/AdminInterfaz.jsx';
 import EstadoEscrituraConectada from '../components/EstadoEscrituraConectada.jsx';
 import { useConsultaConectada, useEscrituraConectada } from '../hooks/useOperacionesConectadas.js';
 import { editarClienteApi, obtenerClienteApi } from '../services/operacionesApi.js';
 
+const campos = [['nombre', 'Nombre'], ['apellido', 'Apellido'], ['correo', 'Correo'], ['telefono', 'Teléfono'],
+    ['comuna', 'Comuna'], ['direccion', 'Dirección']];
+
 export default function AdminUsuarioEditar({ conectado = false }) {
     const { id } = useParams();
+    const base = useBaseAdmin() + '/usuarios';
     const consulta = useConsultaConectada(conectado, obtenerClienteApi, id);
     const usuario = conectado ? consulta.datos : obtenerUsuarioPorId(id);
-    if (conectado && !usuario) return <main className="container my-5"><EstadoCatalogoAdmin consulta={consulta} /></main>;
-    return <FormularioEdicion key={id} usuario={usuario} conectado={conectado} />;
+    const valido = usuario && (conectado || usuario.rol === 'cliente');
+
+    return <main className="tienda-contenedor tienda-pagina admin-pagina">
+        <EncabezadoAdmin titulo="Editar Usuario" descripcion="Actualiza los datos del cliente."
+            regreso={valido ? base + '/' + id : base} textoRegreso={valido ? 'Volver al cliente' : 'Volver a usuarios'} />
+        {conectado && <EstadoCatalogoAdmin consulta={consulta} />}
+        {!conectado && !valido && <p role="alert" className="alert alert-warning">Usuario no encontrado.</p>}
+        {valido && <FormularioEdicion key={id} usuario={usuario} conectado={conectado} destino={base + '/' + id} />}
+    </main>;
 }
 
-function FormularioEdicion({ usuario, conectado }) {
+function FormularioEdicion({ usuario, conectado, destino }) {
     const escritura = useEscrituraConectada();
-    const baseAdmin = useBaseAdmin();
-
     const navigate = useNavigate();
+    const [error, setError] = useState('');
+    const [formulario, setFormulario] = useState(() => Object.fromEntries(campos.map(([campo]) => [campo, usuario[campo] ?? ''])));
 
-    const [mensajeError, setMensajeError] = useState('');
-
-    const [formulario, setFormulario] = useState({
-        nombre: usuario?.nombre || '',
-        apellido: usuario?.apellido || '',
-        correo: usuario?.correo || '',
-        telefono: usuario?.telefono || '',
-        comuna: usuario?.comuna || '',
-        direccion: usuario?.direccion || ''
-    });
-
-
-    if (!usuario || (!conectado && usuario.rol !== 'cliente')) {
-
-        return (
-            <main className="container my-5">
-
-                <div className="alert alert-danger">
-                    Usuario no encontrado.
-                </div>
-
-                <Link
-                    to={`${baseAdmin}/usuarios`}
-                    className="btn btn-secondary"
-                >
-                    Volver a usuarios
-                </Link>
-
-            </main>
-        );
-    }
-
-
-    function manejarCambio(evento) {
-
-        const { name, value } = evento.target;
-
-        setFormulario({
-            ...formulario,
-            [name]: value
-        });
-    }
-
-
-    async function manejarEnvio(evento) {
-
+    async function guardar(evento) {
         evento.preventDefault();
-
-        setMensajeError('');
-
+        setError('');
         if (conectado) {
-            if (await escritura.ejecutar(editarClienteApi, usuario.id, formulario)) {
-                navigate(`${baseAdmin}/usuarios/${usuario.id}`);
-            }
-            return;
+            if (!await escritura.ejecutar(editarClienteApi, usuario.id, formulario)) return;
+        } else {
+            const resultado = await actualizarUsuarioAdmin(usuario.id, formulario);
+            if (!resultado.exito) { setError(resultado.mensaje); return; }
         }
-
-        const resultado =
-            await actualizarUsuarioAdmin(
-                usuario.id,
-                formulario
-            );
-
-        if (!resultado.exito) {
-
-            setMensajeError(
-                resultado.mensaje
-            );
-
-            return;
-        }
-
-        navigate(
-            `${baseAdmin}/usuarios/${usuario.id}`
-        );
+        navigate(destino, { state: { confirmacion: 'Datos del cliente actualizados.' } });
     }
 
-
-    return (
-        <main className="container my-5">
-
-            <div className="d-flex justify-content-between align-items-center mb-4">
-
-                <div>
-
-                    <h1 className="mb-1">
-                        Editar Usuario
-                    </h1>
-
-                    <p className="text-muted mb-0">
-                        Modifica los datos del cliente.
-                    </p>
-
-                </div>
-
-                <Link
-                    to={`${baseAdmin}/usuarios/${usuario.id}`}
-                    className="btn btn-outline-secondary"
-                >
-                    Volver
-                </Link>
-
-            </div>
-
-
-            <div className="card shadow-sm">
-
-                <div className="card-body">
-
-                    {conectado && <EstadoEscrituraConectada escritura={escritura} />}
-                    {mensajeError && (
-
-                        <div className="alert alert-danger">
-                            {mensajeError}
-                        </div>
-
-                    )}
-
-
-                    <form onSubmit={manejarEnvio}>
-
-                        <div className="row">
-
-                            <div className="col-md-6 mb-3">
-
-                                <label className="form-label">
-                                    Nombre
-                                </label>
-
-                                <input
-                                    type="text"
-                                    className="form-control"
-                                    name="nombre"
-                                    value={formulario.nombre}
-                                    onChange={manejarCambio}
-                                    required
-                                />
-
-                            </div>
-
-
-                            <div className="col-md-6 mb-3">
-
-                                <label className="form-label">
-                                    Apellido
-                                </label>
-
-                                <input
-                                    type="text"
-                                    className="form-control"
-                                    name="apellido"
-                                    value={formulario.apellido}
-                                    onChange={manejarCambio}
-                                    required={!conectado}
-                                />
-
-                            </div>
-
-
-                            <div className="col-md-6 mb-3">
-
-                                <label className="form-label">
-                                    Correo
-                                </label>
-
-                                <input
-                                    type="email"
-                                    className="form-control"
-                                    name="correo"
-                                    value={formulario.correo}
-                                    onChange={manejarCambio}
-                                    required
-                                />
-
-                            </div>
-
-
-                            <div className="col-md-6 mb-3">
-
-                                <label className="form-label">
-                                    Teléfono
-                                </label>
-
-                                <input
-                                    type="text"
-                                    className="form-control"
-                                    name="telefono"
-                                    value={formulario.telefono}
-                                    onChange={manejarCambio}
-                                />
-
-                            </div>
-
-
-                            <div className="col-md-6 mb-3">
-
-                                <label className="form-label">
-                                    Comuna
-                                </label>
-
-                                <input
-                                    type="text"
-                                    className="form-control"
-                                    name="comuna"
-                                    value={formulario.comuna}
-                                    onChange={manejarCambio}
-                                />
-
-                            </div>
-
-
-                            <div className="col-md-6 mb-3">
-
-                                <label className="form-label">
-                                    Dirección
-                                </label>
-
-                                <input
-                                    type="text"
-                                    className="form-control"
-                                    name="direccion"
-                                    value={formulario.direccion}
-                                    onChange={manejarCambio}
-                                />
-
-                            </div>
-
-                        </div>
-
-
-                        <button
-                            type="submit"
-                            className="btn btn-primary"
-                            disabled={conectado && (!escritura.habilitada || escritura.procesando)}
-                        >
-                            Guardar cambios
-                        </button>
-
-                    </form>
-
-                </div>
-
-            </div>
-
-        </main>
-    );
+    return <section className="tienda-panel">
+        {conectado && <EstadoEscrituraConectada escritura={escritura} />}
+        {error && <p className="alert alert-danger" role="alert">{error}</p>}
+        <form onSubmit={guardar}>
+            <fieldset disabled={conectado && (!escritura.habilitada || escritura.procesando)} className="row g-3">
+                {campos.map(([campo, etiqueta]) => <div className="col-md-6" key={campo}>
+                    <label className="form-label" htmlFor={campo}>{etiqueta}</label>
+                    <input id={campo} className="form-control" name={campo} type={campo === 'correo' ? 'email' : campo === 'telefono' ? 'tel' : 'text'}
+                        value={formulario[campo]} onChange={(evento) => setFormulario({ ...formulario, [campo]: evento.target.value })}
+                        required={['nombre', 'correo'].includes(campo) || (campo === 'apellido' && !conectado)} />
+                </div>)}
+                <div className="col-12"><button type="submit" className="btn btn-danger">Guardar cambios</button></div>
+            </fieldset>
+        </form>
+    </section>;
 }

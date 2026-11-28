@@ -112,7 +112,7 @@ export default function Register({ conectado = false }) {
                 navigate(RUTA_LOGIN_CONECTADO, { replace: true, state: { ...state, cuentaCreada: true } });
             } catch (error) {
                 setMensaje(error.estado === 409 ? 'Ya existe una cuenta con ese correo.' :
-                    error.estado === 400 ? 'Revisa el nombre, correo y contraseña de registro.' : 'No se pudo registrar la cuenta conectada.');
+                    error.estado === 400 ? 'Revisa el nombre, correo y contraseña de registro.' : 'No se pudo registrar la cuenta.');
             } finally {
                 setPassword('');
                 setConfirmarPassword('');
@@ -144,7 +144,7 @@ export default function Register({ conectado = false }) {
 
 
     return (
-        <main className="container my-5">
+        <main className="container my-4 my-md-5 cuenta-auth">
 
             <div className="row justify-content-center">
 
@@ -155,7 +155,7 @@ export default function Register({ conectado = false }) {
                         <div className="card-body p-4">
 
                             <h1 className="mb-1">
-                                {conectado ? 'Crear cuenta conectada' : 'Crear cuenta'}
+                                Crear cuenta
                             </h1>
 
                             <p className="text-muted mb-4">
@@ -171,7 +171,7 @@ export default function Register({ conectado = false }) {
 
                             )}
 
-                            {conectado && !registroHabilitado && <p className="alert alert-info">El registro conectado está deshabilitado.</p>}
+                            {conectado && !registroHabilitado && <p className="alert alert-info">El registro no está disponible por el momento.</p>}
 
 
                             <form onSubmit={manejarRegistro}>

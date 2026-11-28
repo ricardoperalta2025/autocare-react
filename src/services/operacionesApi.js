@@ -25,6 +25,7 @@ export const editarClienteApi = (token, id, datos) => escribir(`/usuarios/${idVa
 export const listarIncidenciasApi = (token) => leer('/incidencias', token);
 export const crearIncidenciaApi = (token, datos) => escribir('/incidencias', token, 'POST', 201, datos);
 export const resolverIncidenciaApi = (token, id) => escribir(`/incidencias/${idValido(id)}/resolucion`, token, 'PUT', 204);
+export const actualizarIncidenciaApi = (token, id, datos) => escribir(`/incidencias/${idValido(id)}/gestion`, token, 'PUT', 200, datos);
 export const marcarOrdenEnviadaApi = (token, id) => escribir(`/ordenes/${idValido(id)}/envio`, token, 'PUT', 204);
 
 export const obtenerPerfilApi = (token) => leer('/usuarios/me/perfil', token);
@@ -35,7 +36,7 @@ const fecha = new Intl.DateTimeFormat('es-CL', {
     dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Santiago'
 });
 
-const estados = { PROCESANDO: 'Procesando', ENVIADO: 'Enviado', PENDIENTE: 'Pendiente', RESUELTA: 'Resuelta' };
+const estados = { PROCESANDO: 'Procesando', ENVIADO: 'Enviado', PENDIENTE: 'Pendiente', EN_REVISION: 'En revisión', RESUELTA: 'Resuelta' };
 
 export function formatearRegistro(registro) {
     const instante = new Date(registro.fechaCreacion ?? registro.fecha ?? '');

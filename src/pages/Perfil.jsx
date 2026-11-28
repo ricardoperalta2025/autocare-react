@@ -1,10 +1,21 @@
 import { useState } from 'react';
-import { obtenerSesion, actualizarUsuarioPerfil } from '../services/usuariosService';
+import { Link } from 'react-router-dom';
+import { obtenerSesion, actualizarUsuarioPerfil } from '../services/usuariosService.js';
+import { RUTA_CATALOGO_CONECTADO } from '../context/catalogo.js';
 import { useSesionConectada } from '../context/sesionConectada.js';
 import { EstadoCatalogoAdmin } from '../components/EstadoCatalogoAdmin.jsx';
 import EstadoEscrituraConectada from '../components/EstadoEscrituraConectada.jsx';
 import { useConsultaConectada, useEscrituraConectada } from '../hooks/useOperacionesConectadas.js';
 import { editarPerfilApi, obtenerPerfilApi } from '../services/operacionesApi.js';
+
+const campos = [
+    ['nombre', 'Nombre', 'text', 'given-name', ''],
+    ['apellido', 'Apellido', 'text', 'family-name', ''],
+    ['correo', 'Correo electrónico', 'email', 'email', ''],
+    ['telefono', 'Teléfono', 'tel', 'tel', 'Ej: 912345678'],
+    ['comuna', 'Comuna', 'text', 'address-level2', 'Ej: Puente Alto'],
+    ['direccion', 'Dirección', 'text', 'street-address', 'Ej: Avenida Siempre Viva 123']
+];
 
 export default function Perfil({ conectado = false }) {
     if (conectado) return <PerfilConectado />;
@@ -14,42 +25,22 @@ export default function Perfil({ conectado = false }) {
 function PerfilConectado() {
     const consulta = useConsultaConectada(true, obtenerPerfilApi);
     if (consulta.datos) return <FormularioPerfil sesion={consulta.datos} conectado />;
-    return <main className="container my-5">
-        <h1>Mi perfil conectado</h1>
-        <EstadoCatalogoAdmin consulta={consulta} />
+    return <main className="tienda-contenedor tienda-pagina perfil-pagina">
+        <h1>Mi perfil</h1><EstadoCatalogoAdmin consulta={consulta} mensajeCarga="Cargando perfil…" />
     </main>;
 }
 
 function FormularioPerfil({ sesion, conectado = false }) {
     const escritura = useEscrituraConectada();
     const { usuario, restaurarSesion } = useSesionConectada();
-
-    const [nombre, setNombre] = useState(sesion?.nombre || '');
-    const [apellido, setApellido] = useState(sesion?.apellido || '');
-    const [correo, setCorreo] = useState(sesion?.correo || '');
-    const [telefono, setTelefono] = useState(sesion?.telefono || '');
-    const [comuna, setComuna] = useState(sesion?.comuna || '');
-    const [direccion, setDireccion] = useState(sesion?.direccion || '');
+    // Mantiene intacto el nombre que se guardó antes de existir un apellido independiente.
+    const [datos, setDatos] = useState(() => Object.fromEntries(campos.map(([campo]) => [campo, sesion?.[campo] ?? ''])));
     const [mensaje, setMensaje] = useState('');
 
-    if (!sesion) {
+    if (!sesion) return <main className="tienda-contenedor tienda-pagina"><p className="alert alert-warning">Debes iniciar sesión para ver tu perfil.</p></main>;
 
-        return (
-            <main className="container my-5">
-
-                <div className="alert alert-warning">
-                    Debes iniciar sesión para ver tu perfil.
-                </div>
-
-            </main>
-        );
-    }
-
-    async function manejarEnvio(evento) {
-
+    async function guardar(evento) {
         evento.preventDefault();
-
-        const datos = { nombre, apellido, correo, telefono, comuna, direccion };
         setMensaje('');
         if (conectado) {
             if (!await escritura.ejecutar(editarPerfilApi, datos)) return;
@@ -57,161 +48,28 @@ function FormularioPerfil({ sesion, conectado = false }) {
         } else {
             await actualizarUsuarioPerfil(sesion.id, datos);
         }
-
         setMensaje('Perfil actualizado correctamente.');
     }
 
-    return (
-        <main className="container my-5">
-
-            <div className="row justify-content-center">
-
-                <div className="col-lg-8">
-
-                    <div className="card shadow-sm">
-
-                        <div className="card-body p-4">
-
-                            <h1 className="mb-1">
-                                {conectado ? 'Mi perfil conectado' : 'Mi perfil'}
-                            </h1>
-
-                            <p className="text-muted mb-4">
-                                Actualiza tus datos personales y de entrega.
-                            </p>
-
-                            {conectado && <>
-                                <p>Rol: {usuario.rol}</p>
-                                <EstadoEscrituraConectada escritura={escritura} />
-                            </>}
-                            {mensaje && (
-
-                                <div className="alert alert-success">
-                                    {mensaje}
-                                </div>
-
-                            )}
-
-                            <form onSubmit={manejarEnvio}>
-
-                                <div className="row">
-
-                                    <div className="col-md-6 mb-3">
-
-                                        <label className="form-label">
-                                            Nombre
-                                        </label>
-
-                                        <input
-                                            type="text"
-                                            className="form-control"
-                                            value={nombre}
-                                            onChange={(e) => setNombre(e.target.value)}
-                                            required
-                                        />
-
-                                    </div>
-
-                                    <div className="col-md-6 mb-3">
-
-                                        <label className="form-label">
-                                            Apellido
-                                        </label>
-
-                                        <input
-                                            type="text"
-                                            className="form-control"
-                                            value={apellido}
-                                            onChange={(e) => setApellido(e.target.value)}
-                                            required={!conectado}
-                                        />
-
-                                    </div>
-
-                                </div>
-
-                                <div className="mb-3">
-
-                                    <label className="form-label">
-                                        Correo electrónico
-                                    </label>
-
-                                    <input
-                                        type="email"
-                                        className="form-control"
-                                        value={correo}
-                                        onChange={(e) => setCorreo(e.target.value)}
-                                        required
-                                    />
-
-                                </div>
-
-                                <div className="mb-3">
-
-                                    <label className="form-label">
-                                        Teléfono
-                                    </label>
-
-                                    <input
-                                        type="text"
-                                        className="form-control"
-                                        value={telefono}
-                                        onChange={(e) => setTelefono(e.target.value)}
-                                        placeholder="Ej: 912345678"
-                                    />
-
-                                </div>
-
-                                <div className="mb-3">
-
-                                    <label className="form-label">
-                                        Comuna
-                                    </label>
-
-                                    <input
-                                        type="text"
-                                        className="form-control"
-                                        value={comuna}
-                                        onChange={(e) => setComuna(e.target.value)}
-                                        placeholder="Ej: Puente Alto"
-                                    />
-
-                                </div>
-
-                                <div className="mb-3">
-
-                                    <label className="form-label">
-                                        Dirección
-                                    </label>
-
-                                    <input
-                                        type="text"
-                                        className="form-control"
-                                        value={direccion}
-                                        onChange={(e) => setDireccion(e.target.value)}
-                                        placeholder="Ej: Avenida Siempre Viva 123"
-                                    />
-
-                                </div>
-
-                                <button
-                                    type="submit"
-                                    disabled={conectado && (!escritura.habilitada || escritura.procesando)}
-                                    className="btn btn-danger"
-                                >
-                                    Guardar cambios
-                                </button>
-
-                            </form>
-
-                        </div>
-
-                    </div>
-
+    return <main className="tienda-contenedor tienda-pagina perfil-pagina" style={{ maxWidth: 780 }}>
+        <Link className="tienda-regreso" to={conectado ? RUTA_CATALOGO_CONECTADO : '/'}><i className="bi bi-arrow-left" aria-hidden="true" /> Volver a la tienda</Link>
+        <header className="tienda-encabezado"><div><h1>Mi perfil</h1><p className="text-body-secondary mb-0">Actualiza tus datos personales y de entrega.</p></div>
+            {usuario?.rol && conectado && <span className="estado-pedido">{usuario.rol === 'ADMIN' ? 'Administración' : 'Cliente'}</span>}</header>
+        <section className="tienda-panel">
+            {conectado && <EstadoEscrituraConectada escritura={escritura} mensajeBloqueo="La edición del perfil no está disponible por el momento." />}
+            {mensaje && <p className="alert alert-success" role="status">{mensaje}</p>}
+            <form className="row g-3" onSubmit={guardar}>
+                {campos.map(([campo, etiqueta, tipo, auto, ejemplo]) => <div className={campo === 'direccion' ? 'col-12' : 'col-md-6'} key={campo}>
+                    <label className="form-label" htmlFor={'perfil-' + campo}>{etiqueta}</label>
+                    <input id={'perfil-' + campo} type={tipo} autoComplete={auto} className="form-control" value={datos[campo]}
+                        placeholder={ejemplo || undefined} required={['nombre', 'correo'].includes(campo) || (campo === 'apellido' && !conectado)}
+                        onChange={(evento) => setDatos({ ...datos, [campo]: evento.target.value })} />
+                    {campo === 'apellido' && conectado && !sesion.apellido && <small className="form-text">Si tu nombre incluye los apellidos, puedes separarlos aquí.</small>}
+                </div>)}
+                <div className="col-12">
+                    <button type="submit" disabled={conectado && (!escritura.habilitada || escritura.procesando)} className="btn btn-danger">Guardar cambios</button>
                 </div>
-
-            </div>
-
-        </main>
-    );
+            </form>
+        </section>
+    </main>;
 }

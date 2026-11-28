@@ -40,7 +40,7 @@ export default function Login({ conectado = false }) {
                 navigate(destino, { replace: true });
             } catch (error) {
                 setMensaje(error.estado === 401 ? 'Correo o contraseña incorrectos.' :
-                    'No se pudo iniciar sesión conectada. Revisa tus datos o vuelve a intentar.');
+                    'No se pudo iniciar sesión. Revisa tus datos o vuelve a intentar.');
             } finally {
                 setPassword('');
                 setProcesando(false);
@@ -66,7 +66,7 @@ export default function Login({ conectado = false }) {
     }
 
     return (
-        <main className="container my-5">
+        <main className="container my-4 my-md-5 cuenta-auth">
 
             <div className="row justify-content-center">
 
@@ -84,9 +84,7 @@ export default function Login({ conectado = false }) {
                                     AutoCare<span className="text-danger">Pro</span>
                                 </h3>
 
-                                <h2>
-                                    {conectado ? 'Iniciar sesión conectada' : 'Iniciar Sesión'}
-                                </h2>
+                                <h1>Iniciar sesión</h1>
 
                             </div>
 
@@ -98,7 +96,7 @@ export default function Login({ conectado = false }) {
 
                             )}
 
-                            {conectado && !sesion.habilitado && <p className="alert alert-info">La prueba de autenticación conectada está deshabilitada.</p>}
+                            {conectado && !sesion.habilitado && <p className="alert alert-info">El inicio de sesión no está disponible por el momento.</p>}
                             {conectado && state?.cuentaCreada && <p className="alert alert-success" role="status">Cuenta creada. Ingresa con tus datos.</p>}
 
                             <form onSubmit={manejarLogin}>

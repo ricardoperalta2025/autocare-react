@@ -51,7 +51,7 @@ export default defineConfig(({ command, isPreview, mode }) => {
             if (method === 'POST' && admitePost) return
 
             const altaGestion = method === 'POST' && /^\/api\/v1\/(usuarios|incidencias|contacto)$/.test(url)
-            const cambioGestion = method === 'PUT' && /^\/api\/v1\/(usuarios\/([0-9a-f]{24}|me\/perfil)|ordenes\/[0-9a-f]{24}\/envio|incidencias\/[0-9a-f]{24}\/resolucion)$/.test(url)
+            const cambioGestion = method === 'PUT' && /^\/api\/v1\/(usuarios\/([0-9a-f]{24}|me\/perfil)|ordenes\/[0-9a-f]{24}\/envio|incidencias\/[0-9a-f]{24}\/(resolucion|gestion))$/.test(url)
             if (conexionLocal && pruebaGestion && (altaGestion || cambioGestion)) return
 
             const rutaCatalogo = /^\/api\/v1\/(productos|categorias)(?:\/([0-9a-f]{24}))?$/.exec(url)

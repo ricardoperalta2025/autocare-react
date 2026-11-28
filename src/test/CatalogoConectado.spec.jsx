@@ -93,9 +93,9 @@ describe('Catálogo conectado', () => {
         localStorage.setItem('productosAutoCare', catalogoLocalGuardado);
         renderizar();
 
-        expect(screen.getByRole('status').textContent).toContain('Cargando catálogo conectado');
+        expect(screen.getByRole('status').textContent).toContain('Cargando catálogo');
         expect(screen.queryByText(productosApi[0].nombre)).toBeNull();
-        expect(await screen.findByText('4 productos disponibles')).toBeTruthy();
+        expect(await screen.findByText('4 productos encontrados')).toBeTruthy();
 
         for (const producto of productosApi) {
             expect(screen.getByText(producto.nombre)).toBeTruthy();
@@ -122,7 +122,7 @@ describe('Catálogo conectado', () => {
         fireEvent.click(filtroAceites);
         expect(screen.getByText(productosApi[2].nombre)).toBeTruthy();
         fireEvent.click(screen.getByRole('button', { name: 'Limpiar filtros' }));
-        expect(screen.getByText('4 productos disponibles')).toBeTruthy();
+        expect(screen.getByText('4 productos encontrados')).toBeTruthy();
     });
 
     it('muestra el precio final de la API y lo usa para ordenar', async () => {
@@ -174,13 +174,30 @@ describe('Catálogo conectado', () => {
 
         fireEvent.click(screen.getByRole('button', { name: 'Limpiar filtros' }));
         fireEvent.click(screen.getByRole('button', { name: 'Página 2' }));
-        fireEvent.change(screen.getByRole('combobox'), { target: { value: 'precio-mayor' } });
+        fireEvent.change(screen.getByRole('combobox', { name: 'Ordenar productos' }), { target: { value: 'precio-mayor' } });
         expect(screen.getByText('Mostrando 1–9 de 50 productos')).toBeTruthy();
         expect(screen.getAllByRole('img')[0].alt).toBe('Repuesto 50');
         fireEvent.click(screen.getByRole('button', { name: 'Página 4' }));
         fireEvent.click(screen.getByRole('button', { name: 'Limpiar filtros' }));
         expect(screen.getByText('Mostrando 1–9 de 50 productos')).toBeTruthy();
         expect(screen.getAllByRole('img')[0].alt).toBe('Repuesto 1');
+    });
+
+    it('ajusta el tamaño de página y filtra todos los resultados antes de paginar', async () => {
+        simularCatalogo(fetchSimulado, crearProductosPaginados());
+        renderizar(`${RUTA_CATALOGO_CONECTADO}?pagina=4`);
+        await screen.findByText('Mostrando 28–36 de 50 productos');
+        const tamano = screen.getByRole('combobox', { name: 'Productos por página' });
+        fireEvent.change(tamano, { target: { value: '18' } });
+        expect(screen.getByText('Mostrando 1–18 de 50 productos')).toBeTruthy();
+        fireEvent.change(screen.getByRole('textbox', { name: 'Buscar productos' }), { target: { value: 'Repuesto 2' } });
+        expect(screen.getByText('Mostrando 1–11 de 11 productos')).toBeTruthy();
+        fireEvent.click(screen.getByRole('button', { name: 'Limpiar filtros' }));
+        fireEvent.change(tamano, { target: { value: '30' } });
+        expect(screen.getAllByRole('link', { name: 'Ver detalle' }).length).toBe(30);
+        fireEvent.change(tamano, { target: { value: 'todos' } });
+        expect(screen.getByText('Mostrando 1–50 de 50 productos')).toBeTruthy();
+        expect(screen.queryByRole('navigation', { name: 'Paginación del catálogo' })).toBeNull();
     });
 
     it('reemplaza una imagen rota y distingue agotado de crítico en tarjeta y detalle', async () => {
@@ -193,10 +210,10 @@ describe('Catálogo conectado', () => {
         const imagen = await screen.findByRole('img', { name: agotado.nombre });
         const tarjeta = within(imagen.closest('.card'));
         expect(tarjeta.getByText('Agotado')).toBeTruthy();
-        expect(tarjeta.queryByText('Stock crítico')).toBeNull();
-        expect(tarjeta.getByRole('button', { name: /al carrito conectado/ }).disabled).toBeTrue();
-        expect(screen.getByText('Stock crítico')).toBeTruthy();
-        expect(screen.getByRole('button', { name: `Agregar ${critico.nombre} al carrito conectado` }).disabled).toBeFalse();
+        expect(tarjeta.queryByText('Últimas unidades')).toBeNull();
+        expect(tarjeta.getByRole('button', { name: /al carrito/ }).disabled).toBeTrue();
+        expect(screen.getByText('Últimas unidades')).toBeTruthy();
+        expect(screen.getByRole('button', { name: `Agregar ${critico.nombre} al carrito` }).disabled).toBeFalse();
         expect(screen.getByRole('img', { name: critico.nombre }).getAttribute('src')).toBe(IMAGEN_PRODUCTO_ALTERNATIVA);
         fireEvent.error(imagen);
         expect(imagen.getAttribute('src')).toBe(IMAGEN_PRODUCTO_ALTERNATIVA);
@@ -209,8 +226,8 @@ describe('Catálogo conectado', () => {
         fireEvent.error(imagenDetalle);
         expect(imagenDetalle.getAttribute('src')).toBe(IMAGEN_PRODUCTO_ALTERNATIVA);
         expect(screen.getByText('Agotado')).toBeTruthy();
-        expect(screen.queryByText('Stock crítico')).toBeNull();
-        expect(screen.getByRole('button', { name: 'Agregar al carrito conectado' }).disabled).toBeTrue();
+        expect(screen.queryByText('Últimas unidades')).toBeNull();
+        expect(screen.getByRole('button', { name: 'Agregar al carrito' }).disabled).toBeTrue();
     });
 
     it('reusa fotos por SKU solo cuando la API devuelve una ficha de categoría de la demo', async () => {
@@ -235,18 +252,19 @@ describe('Catálogo conectado', () => {
         const carritoLocal = [{ ...productosLocales[1], cantidad: 2 }];
         localStorage.setItem('carritoAutoCare', JSON.stringify(carritoLocal));
         renderizar();
-        await screen.findByText('4 productos disponibles');
+        await screen.findByText('4 productos encontrados');
 
         const [producto] = productosApi;
-        fireEvent.click(screen.getByRole('button', { name: `Agregar ${producto.nombre} al carrito conectado` }));
+        fireEvent.click(screen.getByRole('button', { name: `Agregar ${producto.nombre} al carrito` }));
         const enlace = screen.getAllByRole('link', { name: 'Ver detalle' })[0];
         expect(enlace.getAttribute('href')).toBe(`${RUTA_CATALOGO_CONECTADO}/${producto.id}`);
         fireEvent.click(enlace);
 
         expect(screen.getByRole('heading', { name: producto.nombre })).toBeTruthy();
         expect(screen.getByRole('img', { name: producto.nombre }).getAttribute('src')).toBe(producto.imagen);
-        expect(screen.getByText(/Stock disponible:/).parentElement.textContent).toContain(String(producto.stock));
-        fireEvent.click(screen.getByRole('button', { name: 'Agregar al carrito conectado' }));
+        expect(screen.queryByText(/Stock disponible:/)).toBeNull();
+        expect(screen.getByText('Disponible')).toBeTruthy();
+        fireEvent.click(screen.getByRole('button', { name: 'Agregar al carrito' }));
         expect(JSON.parse(localStorage.getItem('carritoAutoCare'))).toEqual(carritoLocal);
         expect(JSON.parse(localStorage.getItem('carritoConectadoAutoCare')).carrito).toEqual([
             jasmine.objectContaining({ id: producto.id, cantidad: 2, precio: producto.precioFinal })
@@ -257,7 +275,7 @@ describe('Catálogo conectado', () => {
 
     it('mantiene la navegación de categorías y ofertas en la vista conectada', async () => {
         renderizar();
-        await screen.findByText('4 productos disponibles');
+        await screen.findByText('4 productos encontrados');
 
         const navegacion = within(screen.getByRole('navigation'));
         fireEvent.click(navegacion.getByRole('link', { name: 'Categorías' }));
@@ -277,7 +295,7 @@ describe('Catálogo conectado', () => {
     it('muestra catálogo vacío sin usar los productos locales', async () => {
         simularCatalogo(fetchSimulado, [], []);
         renderizar();
-        expect(await screen.findByText('El catálogo conectado está vacío.')).toBeTruthy();
+        expect(await screen.findByText('El catálogo está vacío.')).toBeTruthy();
         expect(screen.queryByText(productosLocales[0].nombre)).toBeNull();
     });
 
@@ -326,7 +344,7 @@ describe('Catálogo conectado', () => {
 
         simularCatalogo(fetchSimulado);
         fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
-        expect(await screen.findByText('4 productos disponibles')).toBeTruthy();
+        expect(await screen.findByText('4 productos encontrados')).toBeTruthy();
         expect(screen.queryByRole('alert')).toBeNull();
     });
 
@@ -339,7 +357,7 @@ describe('Catálogo conectado', () => {
 
     it('completa la compra simulada, registra la orden y descuenta stock sin consultar la API', () => {
         renderizar('/productos');
-        expect(screen.getByRole('link', { name: 'Ver catálogo conectado' }).getAttribute('href'))
+        expect(screen.getByRole('link', { name: 'Ir a la tienda' }).getAttribute('href'))
             .toBe(RUTA_CATALOGO_CONECTADO);
         fireEvent.click(screen.getAllByRole('link', { name: 'Ver detalle' })[0]);
         fireEvent.click(screen.getByRole('button', { name: 'Agregar al carrito' }));

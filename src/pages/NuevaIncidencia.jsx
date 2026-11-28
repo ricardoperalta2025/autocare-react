@@ -75,7 +75,7 @@ export default function NuevaIncidencia({ conectado = false }) {
     }
 
     return (
-        <main className="container my-5">
+        <main className="container my-5 nueva-incidencia">
 
             <div className="mb-4">
 
@@ -89,7 +89,8 @@ export default function NuevaIncidencia({ conectado = false }) {
 
             </div>
 
-            {conectado && <><EstadoCatalogoAdmin consulta={consulta} /><EstadoEscrituraConectada escritura={escritura} /></>}
+            {conectado && <><EstadoCatalogoAdmin consulta={consulta} mensajeCarga="Cargando órdenes…" />
+                <EstadoEscrituraConectada escritura={escritura} mensajeBloqueo="El envío de incidencias no está disponible por el momento." /></>}
             {(!conectado || consulta.datos) && <div className="card shadow-sm">
 
                 <div className="card-body">

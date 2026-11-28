@@ -1,486 +1,196 @@
-import { useState } from 'react';
-
-import {
-    Link,
-    useSearchParams
-} from 'react-router-dom';
-
-import {
-    mostrarImagenProductoAlternativa,
-    obtenerImagenProducto,
-    obtenerProductos,
-    obtenerDescuentoProducto,
-    obtenerPrecioFinalProducto,
-    productoEstaEnOferta,
-    productoTieneStockCritico
-} from '../services/productosService';
-
-import {
-    obtenerCategorias
-} from '../services/categoriasService';
-
-import {
-    useCarrito
-} from '../context/CarritoContext';
-import { RUTA_CATALOGO_CONECTADO, useCatalogoConectado } from '../context/catalogo';
-import { useSesionConectada } from '../context/sesionConectada';
-import { useCarritoConectado } from '../context/CarritoConectadoContext.jsx';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { obtenerProductos, obtenerDescuentoProducto, obtenerPrecioFinalProducto } from '../services/productosService.js';
+import { obtenerCategorias } from '../services/categoriasService.js';
 import { mismoIdProducto } from '../services/carritoService.js';
+import { useCarrito } from '../context/CarritoContext.jsx';
+import { useCarritoConectado } from '../context/CarritoConectadoContext.jsx';
+import { RUTA_CARRITO_CONECTADO, RUTA_CATALOGO_CONECTADO, useCatalogoConectado } from '../context/catalogo.js';
+import { useSesionConectada } from '../context/sesionConectada.js';
+import ProductoTarjeta from '../components/ProductoTarjeta.jsx';
+import AvisoCarrito from '../components/AvisoCarrito.jsx';
 
-const PRODUCTOS_POR_PAGINA = 9;
+const TAMANOS = ['9', '18', '30', 'todos'];
 
 export default function Productos() {
     const catalogo = useCatalogoConectado();
-    const vendedor = useSesionConectada().usuario?.rol === 'VENDEDOR';
+    const { usuario, demostracion } = useSesionConectada();
+    const rol = usuario?.rol;
     const conectado = Boolean(catalogo);
+    const vendedor = conectado && rol === 'VENDEDOR';
+    const mostrarStock = !conectado || ['ADMIN', 'VENDEDOR'].includes(rol);
     const rutaProductos = conectado ? RUTA_CATALOGO_CONECTADO : '/productos';
     const productos = conectado ? catalogo.productos : obtenerProductos();
     const categorias = conectado ? catalogo.categorias : obtenerCategorias();
-    const { agregarProducto } = useCarrito();
+    const local = useCarrito();
     const remoto = useCarritoConectado();
     const [searchParams, setSearchParams] = useSearchParams();
     const [orden, setOrden] = useState('');
+    const [aviso, setAviso] = useState(null);
+    const lista = useRef(null);
+    const desplazarAlCambiarPagina = useRef(false);
 
-    const categoriasSeleccionadas = searchParams.getAll('categoria');
+    const seleccionadas = searchParams.getAll('categoria');
     const busqueda = searchParams.get('buscar') ?? '';
     const texto = busqueda.trim().toLowerCase();
+    const precio = (producto) => conectado ? producto.precioFinal : obtenerPrecioFinalProducto(producto);
 
-    function precioParaMostrar(producto) {
-        return conectado ? producto.precioFinal : obtenerPrecioFinalProducto(producto);
-    }
-
-    const productosFiltrados = productos.filter((producto) => {
+    const filtrados = productos.filter((producto) => {
         const categoria = conectado ? producto.categoriaId : producto.categoria;
-        const coincideCategoria = categoriasSeleccionadas.length === 0 ||
-            categoriasSeleccionadas.includes(categoria);
-        const coincideBusqueda = !texto || [producto.nombre, producto.categoria, producto.descripcion]
-            .some((campo) => (campo ?? '').toLowerCase().includes(texto));
-
-        return coincideCategoria && coincideBusqueda;
+        const coincideCategoria = !seleccionadas.length || seleccionadas.includes(categoria);
+        return coincideCategoria && (!texto || [producto.nombre, producto.categoria, producto.descripcion]
+            .some((campo) => (campo ?? '').toLowerCase().includes(texto)));
     });
 
-    if (orden === 'precio-menor') {
-        productosFiltrados.sort((a, b) => precioParaMostrar(a) - precioParaMostrar(b));
-    }
-    if (orden === 'precio-mayor') {
-        productosFiltrados.sort((a, b) => precioParaMostrar(b) - precioParaMostrar(a));
-    }
-    if (orden === 'nombre') {
-        productosFiltrados.sort((a, b) => a.nombre.localeCompare(b.nombre));
-    }
+    if (orden === 'precio-menor') filtrados.sort((a, b) => precio(a) - precio(b));
+    if (orden === 'precio-mayor') filtrados.sort((a, b) => precio(b) - precio(a));
+    if (orden === 'nombre') filtrados.sort((a, b) => a.nombre.localeCompare(b.nombre));
 
-    // Los filtros y el orden se aplican al catálogo completo antes de tomar la página.
-    const totalProductos = productosFiltrados.length;
-    const totalPaginas = Math.max(1, Math.ceil(totalProductos / PRODUCTOS_POR_PAGINA));
-    const paginaSolicitada = Number(searchParams.get('pagina'));
-    const paginaActual = Number.isInteger(paginaSolicitada) && paginaSolicitada > 0
-        ? Math.min(paginaSolicitada, totalPaginas)
-        : 1;
-    const inicioPagina = (paginaActual - 1) * PRODUCTOS_POR_PAGINA;
-    const finPagina = Math.min(inicioPagina + PRODUCTOS_POR_PAGINA, totalProductos);
-    const productosVisibles = conectado ? productosFiltrados.slice(inicioPagina, finPagina) : productosFiltrados;
+    // La búsqueda, los filtros y el orden se aplican al conjunto completo.
+    const total = filtrados.length;
+    const medida = TAMANOS.includes(searchParams.get('porPagina')) ? searchParams.get('porPagina') : '9';
+    const porPagina = medida === 'todos' ? Math.max(total, 1) : Number(medida);
+    const totalPaginas = Math.max(1, Math.ceil(total / porPagina));
+    const pedida = Number(searchParams.get('pagina'));
+    const pagina = Number.isInteger(pedida) && pedida > 0 ? Math.min(pedida, totalPaginas) : 1;
+    const inicio = (pagina - 1) * porPagina;
+    const fin = Math.min(inicio + porPagina, total);
+    const visibles = conectado ? filtrados.slice(inicio, fin) : filtrados;
 
-    function cambiarPagina(pagina) {
-        const parametros = new URLSearchParams(searchParams);
-        if (pagina === 1) {
-            parametros.delete('pagina');
-        } else {
-            parametros.set('pagina', String(pagina));
+    useEffect(() => {
+        if (desplazarAlCambiarPagina.current) {
+            lista.current?.scrollIntoView({ block: 'start' });
+            desplazarAlCambiarPagina.current = false;
         }
+    }, [pagina]);
+
+    function cambiarPagina(numero) {
+        if (numero === pagina) return;
+        const parametros = new URLSearchParams(searchParams);
+        if (numero === 1) parametros.delete('pagina');
+        else parametros.set('pagina', String(numero));
+        desplazarAlCambiarPagina.current = true;
         setSearchParams(parametros);
+    }
+
+    function cambiarFiltro(campo, valor, reemplazar = false) {
+        const parametros = new URLSearchParams(searchParams);
+        if (valor) parametros.set(campo, valor);
+        else parametros.delete(campo);
+        parametros.delete('pagina');
+        setSearchParams(parametros, { replace: reemplazar });
     }
 
     function alternarCategoria(categoria) {
         const parametros = new URLSearchParams(searchParams);
-
-        if (categoriasSeleccionadas.includes(categoria)) {
-            parametros.delete('categoria', categoria);
-        } else {
-            parametros.append('categoria', categoria);
-        }
-
+        if (seleccionadas.includes(categoria)) parametros.delete('categoria', categoria);
+        else parametros.append('categoria', categoria);
         parametros.delete('pagina');
         setSearchParams(parametros);
     }
 
-    function cambiarBusqueda(textoNuevo) {
-        const parametros = new URLSearchParams(searchParams);
-        if (textoNuevo) {
-            parametros.set('buscar', textoNuevo);
-        } else {
-            parametros.delete('buscar');
-        }
-
-        parametros.delete('pagina');
-        setSearchParams(parametros, { replace: true });
-    }
-
-    function cambiarOrden(nuevoOrden) {
-        setOrden(nuevoOrden);
-        if (searchParams.has('pagina')) {
-            const parametros = new URLSearchParams(searchParams);
-            parametros.delete('pagina');
-            setSearchParams(parametros, { replace: true });
-        }
-    }
-
     function limpiarFiltros() {
-        setSearchParams({});
+        setSearchParams(medida === '9' ? {} : { porPagina: medida });
         setOrden('');
     }
 
+    function agregar(producto) {
+        const unidades = conectado ? remoto.agregarProducto(producto)
+            : local.agregarProducto({ ...producto, precioOriginal: producto.precio,
+                precio: precio(producto), descuento: obtenerDescuentoProducto(producto) });
+        const carrito = conectado ? remoto.carrito : local.carrito;
+        const enCarrito = carrito.find((linea) => mismoIdProducto(linea.id, producto.id))?.cantidad ?? 0;
+        setAviso({ nombre: producto.nombre, cantidad: unidades, mensaje: enCarrito >= producto.stock
+            ? 'Ya agregaste todas las unidades disponibles de este producto.'
+            : 'No se pudo actualizar el carrito. Inténtalo de nuevo.' });
+    }
+
     return (
-        <main className="container my-5">
+        <main className="tienda-contenedor catalogo-pagina">
+            {conectado && !vendedor && pagina === 1 && <section className="tienda-portada">
+                <div className="portada-texto">
+                    <p className="tienda-etiqueta"><span /> Repuestos y accesorios</p>
+                    <p className="portada-titulo">Repuestos para<br />cada kilómetro<span>.</span></p>
+                    <p className="portada-descripcion">Encuentra lo que necesitas para mantener tu auto en marcha.</p>
+                    <a href="#lista-productos" className="btn btn-danger">Explorar productos <i className="bi bi-arrow-down" aria-hidden="true" /></a>
+                </div>
+            </section>}
 
-            <div className="mb-4">
+            <header className="tienda-encabezado" id="lista-productos" ref={lista}>
+                <div>
+                    <h1>Catálogo de productos</h1>
+                    <p className="text-body-secondary mb-0">{total} {total === 1 ? 'producto encontrado' : 'productos encontrados'}</p>
+                </div>
+                {!conectado && <Link className="btn btn-outline-dark btn-sm" to={RUTA_CATALOGO_CONECTADO}>Ir a la tienda</Link>}
+                {conectado && !demostracion && !vendedor && <Link className="tienda-regreso mb-0" to="/productos">Volver al simulador</Link>}
+            </header>
 
-                <h1 className="mb-1">
-                    Catálogo de Productos
-                </h1>
-
-                <p className="text-muted">
-                    {totalProductos} productos disponibles
-                </p>
-
-                {!conectado && (
-                    <Link className="btn btn-outline-secondary btn-sm" to={RUTA_CATALOGO_CONECTADO}>
-                        Ver catálogo conectado
-                    </Link>
-                )}
-
-            </div>
-
-
-            <div className="row g-4">
-
-                {/* FILTROS */}
-
-                <aside className="col-lg-3">
-
-                    <div className="card shadow-sm">
-
-                        <div className="card-body">
-
-                            <h5 className="mb-3">
-                                <i className="bi bi-funnel me-2"></i>
-                                Filtros
-                            </h5>
-
-
-                            <strong>
-                                Categorías
-                            </strong>
-
-
-                            <div className="d-grid gap-2 mt-2">
-
-                                {categorias.map(
-                                    (categoria) => {
-
-                                        const valor = conectado ? categoria.id : categoria.nombre;
-                                        const activa = categoriasSeleccionadas.includes(valor);
-
-                                        return (
-
-                                            <button
-                                                key={categoria.id}
-                                                type="button"
-                                                className={
-                                                    activa
-                                                        ? 'btn btn-danger btn-sm'
-                                                        : 'btn btn-outline-secondary btn-sm'
-                                                }
-                                                aria-pressed={activa}
-                                                onClick={() => alternarCategoria(valor)}
-                                            >
-                                                {categoria.nombre}
-                                            </button>
-
-                                        );
-
-                                    }
-                                )}
-
-
-                                <button
-                                    type="button"
-                                    className="btn btn-outline-secondary btn-sm"
-                                    onClick={limpiarFiltros}
-                                >
-                                    Limpiar filtros
-                                </button>
-
-                            </div>
-
-                        </div>
-
+            <div className="catalogo-distribucion">
+                <aside className="catalogo-filtros" aria-label="Filtros del catálogo">
+                    <div className="filtros-titulo"><i className="bi bi-sliders" aria-hidden="true" /> Categorías</div>
+                    <div className="categoria-filtros">
+                        {categorias.map((categoria) => {
+                            const valor = conectado ? categoria.id : categoria.nombre;
+                            return <button key={categoria.id} type="button" className="categoria-filtro"
+                                aria-pressed={seleccionadas.includes(valor)} onClick={() => alternarCategoria(valor)}>
+                                <i className="bi bi-square" aria-hidden="true" /> {categoria.nombre}
+                            </button>;
+                        })}
                     </div>
-
+                    <button type="button" className="btn btn-link btn-sm limpiar-filtros" onClick={limpiarFiltros}>Limpiar filtros</button>
                 </aside>
 
-
-                {/* PRODUCTOS */}
-
-                <section className="col-lg-9">
-
-                    <div className="row g-3 mb-3">
-
-                        <div className="col-md-8">
-
-                            <div className="input-group">
-
-                                <span className="input-group-text">
-                                    <i className="bi bi-search"></i>
-                                </span>
-
-                                <input
-                                    type="text"
-                                    className="form-control"
-                                    placeholder="Buscar productos por nombre, categoría o descripción..."
-                                    value={busqueda}
-                                    onChange={(evento) => cambiarBusqueda(evento.target.value)}
-                                />
-
-                            </div>
-
+                <section aria-label="Resultados de productos">
+                    <div className="catalogo-herramientas">
+                        <div className="buscador-productos">
+                            <i className="bi bi-search" aria-hidden="true" />
+                            <input type="text" inputMode="search" className="form-control" aria-label="Buscar productos"
+                                placeholder="Buscar productos por nombre, categoría o descripción..." value={busqueda}
+                                onChange={(evento) => cambiarFiltro('buscar', evento.target.value, true)} />
                         </div>
-
-
-                        <div className="col-md-4">
-
-                            <select
-                                className="form-select"
-                                aria-label="Ordenar productos"
-                                value={orden}
-                                onChange={(evento) => cambiarOrden(evento.target.value)}
-                            >
-
-                                <option value="">
-                                    Ordenar por
-                                </option>
-
-                                <option value="precio-menor">
-                                    Precio menor
-                                </option>
-
-                                <option value="precio-mayor">
-                                    Precio mayor
-                                </option>
-
-                                <option value="nombre">
-                                    Nombre
-                                </option>
-
-                            </select>
-
-                        </div>
-
+                        <select className="form-select" aria-label="Ordenar productos" value={orden}
+                            onChange={(evento) => {
+                                setOrden(evento.target.value);
+                                if (searchParams.has('pagina')) cambiarFiltro('pagina', '', true);
+                            }}>
+                            <option value="">Ordenar por</option>
+                            <option value="precio-menor">Precio menor</option>
+                            <option value="precio-mayor">Precio mayor</option>
+                            <option value="nombre">Nombre</option>
+                        </select>
+                        {conectado && <select className="form-select pagina-medida" aria-label="Productos por página" value={medida}
+                            onChange={(evento) => cambiarFiltro('porPagina', evento.target.value === '9' ? '' : evento.target.value)}>
+                            <option value="9">9 por página</option><option value="18">18 por página</option>
+                            <option value="30">30 por página</option><option value="todos">Ver todos</option>
+                        </select>}
                     </div>
 
+                    {conectado && <p className="catalogo-rango" aria-live="polite">Mostrando {total ? inicio + 1 : 0}–{fin} de {total} productos</p>}
 
-                    {conectado && (
-                        <p className="text-muted" aria-live="polite">
-                            Mostrando {totalProductos ? inicioPagina + 1 : 0}–{finPagina} de {totalProductos} productos
-                        </p>
-                    )}
-
-                    {totalProductos === 0 ? (
-
-                        <div className="alert alert-info">
-                            {conectado && productos.length === 0
-                                ? 'El catálogo conectado está vacío.'
-                                : 'No se encontraron productos con los filtros seleccionados.'}
+                    {total === 0 ? <p className="tienda-vacio">{conectado && productos.length === 0
+                        ? 'El catálogo está vacío.' : 'No se encontraron productos con los filtros seleccionados.'}</p> : (
+                        <div className="producto-grid">
+                            {visibles.map((producto) => <ProductoTarjeta key={producto.id} producto={producto}
+                                ruta={rutaProductos + '/' + producto.id} precioFinal={precio(producto)} mostrarStock={mostrarStock}
+                                bloqueado={conectado && Boolean(remoto.intento)} agregar={vendedor ? undefined : () => agregar(producto)} />)}
                         </div>
-
-                    ) : (
-
-                        <div className="row g-4">
-
-                            {productosVisibles.map(
-                                (producto) => {
-
-                                    const descuento =
-                                        obtenerDescuentoProducto(
-                                            producto
-                                        );
-
-                                    const precioFinal = precioParaMostrar(producto);
-                                    const agotado = producto.stock <= 0;
-                                    const cantidadEnCarrito = conectado
-                                        ? remoto.carrito.find((linea) => mismoIdProducto(linea.id, producto.id))?.cantidad ?? 0
-                                        : 0;
-
-                                    const enOferta =
-                                        productoEstaEnOferta(
-                                            producto
-                                        );
-
-
-                                    return (
-
-                                        <div
-                                            key={producto.id}
-                                            className="col-md-6 col-xl-4"
-                                        >
-
-                                            <div className="card shadow-sm h-100">
-
-                                                <img
-                                                    src={obtenerImagenProducto(producto)}
-                                                    onError={(evento) => mostrarImagenProductoAlternativa(evento, producto.imagen)}
-                                                    className="card-img-top"
-                                                    alt={producto.nombre}
-                                                    style={{
-                                                        height: '220px',
-                                                        objectFit: 'contain',
-                                                        padding: '15px'
-                                                    }}
-                                                />
-
-
-                                                <div className="card-body d-flex flex-column">
-
-                                                    <div className="mb-2">
-
-                                                        <span className="badge text-bg-secondary">
-                                                            {producto.categoria}
-                                                        </span>
-
-                                                        {enOferta && (
-
-                                                            <span className="badge text-bg-danger ms-2">
-                                                                -{descuento}%
-                                                            </span>
-
-                                                        )}
-
-                                                    </div>
-
-
-                                                    <h5 className="card-title">
-                                                        {producto.nombre}
-                                                    </h5>
-
-
-                                                    <p className="card-text text-muted">
-                                                        {producto.descripcion}
-                                                    </p>
-
-
-                                                    <div className="mt-auto">
-
-                                                        {enOferta ? (
-
-                                                            <>
-                                                                <div className="text-muted text-decoration-line-through">
-                                                                    ${producto.precio.toLocaleString('es-CL')}
-                                                                </div>
-
-                                                                <h5 className="text-danger">
-                                                                    ${precioFinal.toLocaleString('es-CL')}
-                                                                </h5>
-                                                            </>
-
-                                                        ) : (
-
-                                                            <h5 className="text-danger">
-                                                                ${(conectado ? precioFinal : producto.precio).toLocaleString('es-CL')}
-                                                            </h5>
-
-                                                        )}
-
-
-                                                        <p className="mb-2">
-                                                            Stock: {producto.stock}
-                                                        </p>
-
-
-                                                        {agotado && <div className="alert alert-danger py-2">Agotado</div>}
-                                                        {productoTieneStockCritico(producto) && (
-                                                            <div className="alert alert-warning py-2">Stock crítico</div>
-                                                        )}
-
-
-                                                        <div className="d-flex gap-2">
-
-                                                            <Link
-                                                                to={`${rutaProductos}/${producto.id}`}
-                                                                className="btn btn-outline-secondary flex-grow-1"
-                                                            >
-                                                                Ver detalle
-                                                            </Link>
-
-
-                                                            {(!conectado || !vendedor) && <button
-                                                                type="button"
-                                                                className="btn btn-danger"
-                                                                disabled={
-                                                                    agotado ||
-                                                                    (conectado && (remoto.intento || cantidadEnCarrito >= producto.stock))
-                                                                }
-                                                                aria-label={conectado ? `Agregar ${producto.nombre} al carrito conectado` : undefined}
-                                                                onClick={() => conectado
-                                                                    ? remoto.agregarProducto(producto)
-                                                                    : agregarProducto({ ...producto, precioOriginal: producto.precio,
-                                                                        precio: precioFinal, descuento })}
-                                                            >
-                                                                <i className="bi bi-cart-plus"></i>
-                                                            </button>}
-
-                                                        </div>
-
-                                                    </div>
-
-                                                </div>
-
-                                            </div>
-
-                                        </div>
-
-                                    );
-
-                                }
-                            )}
-
-                        </div>
-
                     )}
 
-                    {conectado && totalPaginas > 1 && (
-                        <nav className="mt-4" aria-label="Paginación del catálogo">
-                            <ul className="pagination flex-wrap gap-1 justify-content-center">
-                                <li className="page-item">
-                                    <button type="button" className="page-link" disabled={paginaActual === 1}
-                                        onClick={() => cambiarPagina(paginaActual - 1)}>
-                                        Anterior
-                                    </button>
-                                </li>
-                                {Array.from({ length: totalPaginas }, (_, indice) => {
-                                    const pagina = indice + 1;
-                                    return (
-                                        <li className={pagina === paginaActual ? 'page-item active' : 'page-item'} key={pagina}>
-                                            <button type="button" className="page-link" aria-label={`Página ${pagina}`}
-                                                aria-current={pagina === paginaActual ? 'page' : undefined}
-                                                onClick={() => cambiarPagina(pagina)}>
-                                                {pagina}
-                                            </button>
-                                        </li>
-                                    );
-                                })}
-                                <li className="page-item">
-                                    <button type="button" className="page-link" disabled={paginaActual === totalPaginas}
-                                        onClick={() => cambiarPagina(paginaActual + 1)}>
-                                        Siguiente
-                                    </button>
-                                </li>
-                            </ul>
-                        </nav>
-                    )}
-
+                    {conectado && totalPaginas > 1 && <nav className="catalogo-paginacion" aria-label="Paginación del catálogo">
+                        <button className="pagina-boton" type="button" aria-label="Anterior" disabled={pagina === 1}
+                            onClick={() => cambiarPagina(pagina - 1)}><i className="bi bi-chevron-left" aria-hidden="true" />
+                            <span className="d-none d-sm-inline">Anterior</span></button>
+                        {Array.from({ length: totalPaginas }, (_, indice) => <button className="pagina-boton" type="button"
+                            key={indice} aria-label={'Página ' + (indice + 1)} aria-current={pagina === indice + 1 ? 'page' : undefined}
+                            onClick={() => cambiarPagina(indice + 1)}>{indice + 1}</button>)}
+                        <button className="pagina-boton" type="button" aria-label="Siguiente" disabled={pagina === totalPaginas}
+                            onClick={() => cambiarPagina(pagina + 1)}><span className="d-none d-sm-inline">Siguiente</span>
+                            <i className="bi bi-chevron-right" aria-hidden="true" /></button>
+                    </nav>}
                 </section>
-
             </div>
 
+            <AvisoCarrito aviso={aviso} cerrar={setAviso} rutaCarrito={conectado ? RUTA_CARRITO_CONECTADO : '/carrito'} />
         </main>
     );
 }

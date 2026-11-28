@@ -67,7 +67,7 @@ describe('Comprobante de compra conectado', () => {
         expect(screen.getByRole('heading', { name: `Orden ${orden.id}` })).toBeTruthy();
         expect(screen.getByText(new Intl.DateTimeFormat('es-CL', { dateStyle: 'medium', timeStyle: 'short',
             timeZone: 'America/Santiago' }).format(new Date(orden.fechaCreacion))).getAttribute('datetime')).toBe(orden.fechaCreacion);
-        expect(screen.getByText('Estado de la orden: PROCESANDO')).toBeTruthy();
+        expect(screen.getByText('Procesando')).toBeTruthy();
 
         const aceite = within(tabla).getByRole('row', { name: /Aceite al comprar/ });
         const filtro = within(tabla).getByRole('row', { name: /Filtro al comprar/ });
@@ -82,7 +82,7 @@ describe('Comprobante de compra conectado', () => {
         expect(peticiones.calls.allArgs().every(([url]) => ['/api/v1/auth/me', apiOrden].includes(url))).toBeTrue();
 
         fireEvent.click(screen.getByRole('link', { name: 'Volver al detalle de la orden' }));
-        expect(await screen.findByRole('heading', { name: 'Detalle de orden conectada' })).toBeTruthy();
+        expect(await screen.findByRole('heading', { name: 'Detalle de la orden' })).toBeTruthy();
     });
 
     for (const rol of ['VENDEDOR', 'ADMIN']) {
@@ -101,7 +101,7 @@ describe('Comprobante de compra conectado', () => {
 
     it('redirige al login conectado si falta la sesión', async () => {
         const peticiones = montar(rutaComprobante, { rol: null });
-        expect(await screen.findByRole('heading', { name: 'Iniciar sesión conectada' })).toBeTruthy();
+        expect(await screen.findByRole('heading', { name: 'Iniciar sesión' })).toBeTruthy();
         expect(window.location.pathname).toBe(RUTA_LOGIN_CONECTADO);
         expect(peticiones).not.toHaveBeenCalled();
     });

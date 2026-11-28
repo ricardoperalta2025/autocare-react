@@ -83,7 +83,7 @@ describe('Página de Productos', () => {
 
         expect(
             screen.getByText(
-                '4 productos disponibles'
+                '4 productos encontrados'
             )
         ).toBeTruthy();
 

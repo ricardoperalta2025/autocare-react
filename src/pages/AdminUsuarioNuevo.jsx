@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 import {
     registrarUsuario
@@ -9,6 +9,7 @@ import {
 import { useBaseAdmin } from '../context/catalogo';
 
 import EstadoEscrituraConectada from '../components/EstadoEscrituraConectada.jsx';
+import { EncabezadoAdmin } from '../components/AdminInterfaz.jsx';
 import { useEscrituraConectada } from '../hooks/useOperacionesConectadas.js';
 import { crearClienteApi } from '../services/operacionesApi.js';
 
@@ -83,34 +84,12 @@ export default function AdminUsuarioNuevo({ conectado = false }) {
 
 
     return (
-        <main className="container my-5">
-
-            <div className="d-flex justify-content-between align-items-center mb-4">
-
-                <div>
-
-                    <h1 className="mb-1">
-                        Nuevo Usuario
-                    </h1>
-
-                    <p className="text-muted mb-0">
-                        Registra un nuevo cliente en AutoCarePro.
-                    </p>
-
-                </div>
+        <main className="tienda-contenedor tienda-pagina admin-pagina">
+            <EncabezadoAdmin titulo="Nuevo Usuario" descripcion="Registra un nuevo cliente en AutoCarePro."
+                regreso={baseAdmin + '/usuarios'} textoRegreso="Volver a usuarios" />
 
 
-                <Link
-                    to={`${baseAdmin}/usuarios`}
-                    className="btn btn-outline-secondary"
-                >
-                    Volver
-                </Link>
-
-            </div>
-
-
-            <div className="card shadow-sm">
+            <div className="tienda-panel">
 
                 <div className="card-body">
 
@@ -289,7 +268,7 @@ export default function AdminUsuarioNuevo({ conectado = false }) {
 
                         <button
                             type="submit"
-                            className="btn btn-success mt-4"
+                            className="btn btn-danger mt-4"
                             disabled={conectado && (!escritura.habilitada || escritura.procesando)}
                         >
                             Crear usuario

@@ -166,11 +166,17 @@ function incidencias(datos, id, accion, metodo, cuenta, cuerpo) {
         datos.incidencias.push(incidencia);
         return ok(incidencia, 201);
     }
-    if (metodo === 'PUT' && accion === 'resolucion' && cuenta.rol === 'ADMIN') {
+    if (metodo === 'PUT' && ['resolucion', 'gestion'].includes(accion) && cuenta.rol === 'ADMIN') {
         const incidencia = datos.incidencias.find((entrada) => entrada.id === id);
         if (!incidencia) return problema(404, 'Incidencia no encontrada.');
-        incidencia.estado = 'RESUELTA';
-        return vacia;
+        const estados = ['PENDIENTE', 'EN_REVISION', 'RESUELTA'];
+        const siguiente = accion === 'resolucion' ? 'RESUELTA' : cuerpo.estado;
+        if (!estados.includes(siguiente) || cuerpo?.respuestaAdmin?.length > 2000) return problema(400, 'Datos inválidos.');
+        if (estados.indexOf(siguiente) < estados.indexOf(incidencia.estado)) return problema(409, 'La incidencia no puede volver a un estado anterior.');
+        incidencia.estado = siguiente;
+        incidencia.fechaActualizacion = FECHA;
+        if (cuerpo?.respuestaAdmin != null) incidencia.respuestaAdmin = cuerpo.respuestaAdmin.trim() || null;
+        return accion === 'resolucion' ? vacia : ok(incidencia);
     }
     return problema(403, 'Acción prohibida.');
 }

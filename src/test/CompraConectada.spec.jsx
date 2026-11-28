@@ -173,12 +173,12 @@ describe('Compra conectada', () => {
         expect(screen.getByLabelText('Dirección de entrega').validity.valueMissing).toBeTrue();
         expect(revisar.form.checkValidity()).toBeFalse();
         fireEvent.click(revisar);
-        expect(screen.getByRole('heading', { name: 'Checkout conectado' })).toBeTruthy();
+        expect(screen.getByRole('heading', { name: 'Finalizar compra' })).toBeTruthy();
         expect(screen.queryByRole('button', { name: 'Confirmar compra' })).toBeNull();
         expect(posts(fetchSimulado)).toEqual([]);
     });
 
-    it('mantiene el formulario y muestra una vista previa sin precios ni datos personales', async () => {
+    it('mantiene el formulario y muestra un resumen comercial y de entrega sin el JSON técnico', async () => {
         guardarCarrito();
         const fetchSimulado = simulacionApi();
         renderizar(RUTA_CHECKOUT_CONECTADO);
@@ -193,9 +193,10 @@ describe('Compra conectada', () => {
         fireEvent.click(revisar);
 
         expect(screen.getByText('Entrega seleccionada: Envío estándar')).toBeTruthy();
-        expect(JSON.parse(document.querySelector('pre').textContent)).toEqual({
-            productos: [{ productoId: ID, cantidad: 1 }]
-        });
+        expect(document.querySelector('pre')).toBeNull();
+        expect(screen.getByText('Calle de prueba 10, Santiago')).toBeTruthy();
+        expect(screen.getByText(producto.nombre)).toBeTruthy();
+        expect(screen.getByText('Total estimado: $28.000')).toBeTruthy();
         const confirmar = screen.getByRole('button', { name: 'Confirmar compra' });
         expect(confirmar.disabled).toBeTrue();
         fireEvent.click(confirmar);
@@ -439,7 +440,7 @@ describe('Compra conectada', () => {
         fireEvent.click(await botonConfirmarHabilitado());
         await esperarPost(fetchSimulado);
         fireEvent.click(screen.getByRole('link', { name: 'Abrir carrito' }));
-        expect(screen.getByRole('heading', { name: 'Carrito conectado' })).toBeTruthy();
+        expect(screen.getByRole('heading', { name: 'Carrito' })).toBeTruthy();
 
         const otro = lineaCarritoConectado({ ...producto, id: '6600000000000000000000ff' }, 1);
         const guardado = JSON.parse(localStorage.getItem(CLAVE));

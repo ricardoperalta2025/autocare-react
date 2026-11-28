@@ -1,116 +1,17 @@
 import { Link } from 'react-router-dom';
-import { obtenerProductos } from '../services/productosService';
-
+import { obtenerPrecioFinalProducto, obtenerProductos } from '../services/productosService.js';
+import ProductoTarjeta from './ProductoTarjeta.jsx';
 
 export default function Destacados() {
+    const productos = obtenerProductos().slice(0, 3);
 
-    const productos = obtenerProductos();
-
-    const productosDestacados =
-        productos.slice(0, 3);
-
-
-    const formatoPrecio = new Intl.NumberFormat('es-CL', {
-        style: 'currency',
-        currency: 'CLP',
-        maximumFractionDigits: 0
-    });
-
-
-    return (
-        <section className="container my-5">
-
-            <div className="text-center mb-4">
-
-                <h2>
-                    Productos Destacados
-                </h2>
-
-                <p className="text-muted">
-                    Algunos de nuestros productos disponibles.
-                </p>
-
-            </div>
-
-
-            {productosDestacados.length === 0 ? (
-
-                <div className="alert alert-info">
-                    No existen productos disponibles.
-                </div>
-
-            ) : (
-
-                <div className="row g-4">
-
-                    {productosDestacados.map((producto) => (
-
-                        <div
-                            className="col-md-6 col-lg-4"
-                            key={producto.id}
-                        >
-
-                            <div className="card shadow-sm h-100">
-
-                                <img
-                                    src={producto.imagen}
-                                    className="card-img-top"
-                                    alt={producto.nombre}
-                                    style={{
-                                        height: '220px',
-                                        objectFit: 'contain',
-                                        padding: '20px'
-                                    }}
-                                />
-
-
-                                <div className="card-body d-flex flex-column">
-
-                                    <h5 className="card-title">
-                                        {producto.nombre}
-                                    </h5>
-
-                                    <p className="card-text text-muted">
-                                        {producto.descripcion}
-                                    </p>
-
-
-                                    <h5 className="text-danger mt-auto mb-3">
-                                        {formatoPrecio.format(producto.precio)}
-                                    </h5>
-
-
-                                    <Link
-                                        to={`/productos/${producto.id}`}
-                                        className="btn btn-outline-danger"
-                                    >
-                                        Ver detalle
-                                    </Link>
-
-                                </div>
-
-                            </div>
-
-                        </div>
-
-                    ))}
-
-                </div>
-
-            )}
-
-
-            <div className="text-center mt-4">
-
-                <Link
-                    to="/productos"
-                    className="btn btn-danger"
-                >
-                    Ver todos los productos
-                </Link>
-
-            </div>
-
-        </section>
-    );
+    return <section className="tienda-contenedor my-5">
+        <header className="tienda-encabezado"><h2>Productos destacados</h2>
+            <Link to="/productos" className="tienda-regreso mb-0">Ver todos los productos <i className="bi bi-arrow-right" aria-hidden="true" /></Link>
+        </header>
+        {productos.length ? <div className="producto-grid">{productos.map((producto) =>
+            <ProductoTarjeta key={producto.id} producto={producto} ruta={'/productos/' + producto.id}
+                precioFinal={obtenerPrecioFinalProducto(producto)} mostrarStock />
+        )}</div> : <p className="tienda-vacio">No existen productos disponibles.</p>}
+    </section>;
 }

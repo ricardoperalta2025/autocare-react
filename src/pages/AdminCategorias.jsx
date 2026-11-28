@@ -1,14 +1,12 @@
 import { useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { useBaseAdmin } from '../context/catalogo.js';
 import { useSesionConectada } from '../context/sesionConectada.js';
 import { useConsultaCatalogoAdmin } from '../hooks/useConsultaCatalogoAdmin.js';
 import { adminCatalogoApi, listarCategoriasAdmin, listarProductosAdmin, mensajeErrorAdmin } from '../services/adminCatalogoApi.js';
 import { actualizarCategoria, eliminarCategoria, guardarCategoria, obtenerCategorias } from '../services/categoriasService.js';
 import { AvisoEscriturasAdmin, ErroresFormularioAdmin, EstadoCatalogoAdmin } from '../components/EstadoCatalogoAdmin.jsx';
+import { EncabezadoAdmin, PaginacionAdmin, usePaginaAdmin } from '../components/AdminInterfaz.jsx';
 
 export default function AdminCategorias({ conectado = false, cliente = adminCatalogoApi }) {
-    const baseAdmin = useBaseAdmin();
     const { usuario, solicitar } = useSesionConectada();
     const consulta = useConsultaCatalogoAdmin(conectado, listarCategoriasAdmin);
     const productosApi = useConsultaCatalogoAdmin(conectado, listarProductosAdmin);
@@ -20,6 +18,7 @@ export default function AdminCategorias({ conectado = false, cliente = adminCata
     const [procesando, setProcesando] = useState(false);
     const ocupado = useRef(false);
     const categorias = conectado ? consulta.datos : local;
+    const paginacion = usePaginaAdmin(categorias ?? []);
     const puedeCrear = !conectado || (usuario?.rol === 'ADMIN' && cliente.habilitada);
     const puedeEditar = (categoria) => puedeCrear && (!conectado || cliente.puedeEditar('categorias', categoria));
 
@@ -83,15 +82,11 @@ export default function AdminCategorias({ conectado = false, cliente = adminCata
         );
     }
 
-    return <main className="container my-5">
-        <Link to={baseAdmin} className="btn btn-outline-secondary mb-3">← Volver al panel</Link>
-        <div className="mb-4">
-            <h1 className="mb-1">Administración de Categorías</h1>
-            <p className="text-muted">Crear, editar y eliminar categorías de productos.</p>
-        </div>
+    return <main className="tienda-contenedor tienda-pagina admin-pagina">
+        <EncabezadoAdmin titulo="Administración de Categorías" descripcion="Organiza el catálogo y consulta los productos asociados." />
         {conectado && <AvisoEscriturasAdmin habilitada={cliente.habilitada} soloTemporales={cliente.soloTemporales} />}
         <div className="row g-4">
-            <div className="col-lg-4"><div className="card shadow-sm"><div className="card-body">
+            <div className="col-lg-4"><section className="tienda-panel">
                 <h2 className="h4 mb-3">{editando ? 'Editar categoría' : 'Nueva categoría'}</h2>
                 {aviso && <p role="status" className="alert alert-success">{aviso}</p>}
                 <ErroresFormularioAdmin error={error} etiquetas={{ nombre: 'Nombre' }} />
@@ -109,26 +104,26 @@ export default function AdminCategorias({ conectado = false, cliente = adminCata
                         </div>
                     </fieldset>
                 </form>
-            </div></div></div>
+            </section></div>
 
-            <div className="col-lg-8"><div className="card shadow-sm"><div className="card-body">
+            <div className="col-lg-8"><section className="tienda-panel">
                 <div className="d-flex justify-content-between mb-3">
                     <h2 className="h4 mb-0">Categorías registradas</h2>
                     <span className="badge text-bg-secondary">{categorias?.length ?? '—'}</span>
                 </div>
                 <EstadoCatalogoAdmin consulta={consulta} />
                 {conectado && <EstadoCatalogoAdmin consulta={productosApi} />}
-                {categorias?.length ? <div className="table-responsive"><table className="table align-middle">
-                    <thead><tr><th>ID</th><th>Nombre</th>{conectado && <th>Productos asociados</th>}<th>Acciones</th></tr></thead>
-                    <tbody>{categorias.map((categoria) => {
+                {categorias?.length ? <div className="table-responsive"><table className="table admin-tabla align-middle">
+                    <thead><tr><th>Nombre</th>{conectado && <th>Productos asociados</th>}<th>Acciones</th></tr></thead>
+                    <tbody>{paginacion.filas.map((categoria) => {
                         const asociados = productosApi.datos?.filter((producto) => producto.categoriaId === categoria.id);
                         return <tr key={categoria.id}>
-                            <td>{categoria.id}</td><td>{categoria.nombre}</td>
+                            <td><strong>{categoria.nombre}</strong></td>
                             {conectado && <td>{asociados?.length ? <details>
                                 <summary>{asociados.length} {asociados.length === 1 ? 'producto' : 'productos'}</summary>
                                 <ul className="mb-0">{asociados.map((producto) => <li key={producto.id}>{producto.nombre}</li>)}</ul>
                             </details> : asociados ? '0' : '—'}</td>}
-                            <td><div className="d-flex gap-2">
+                            <td><div className="admin-acciones">
                                 <button type="button" disabled={!puedeEditar(categoria) || procesando} className="btn btn-outline-primary btn-sm"
                                     onClick={() => editar(categoria)}>Editar</button>
                                 <button type="button" disabled={!puedeEditar(categoria) || procesando} className="btn btn-outline-danger btn-sm"
@@ -137,7 +132,8 @@ export default function AdminCategorias({ conectado = false, cliente = adminCata
                         </tr>;
                     })}</tbody>
                 </table></div> : categorias && <p>Todavía no hay categorías.</p>}
-            </div></div></div>
+                {categorias?.length > 0 && <PaginacionAdmin datos={paginacion} seccion="categorías" />}
+            </section></div>
         </div>
     </main>;
 }

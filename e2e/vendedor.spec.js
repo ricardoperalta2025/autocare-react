@@ -15,8 +15,9 @@ test('VENDEDOR · consulta órdenes y productos sin acciones de compra ni datos 
 
     await nav.getByRole('link', { name: 'Productos' }).click();
     await expect(page.getByText(ACEITE, { exact: true })).toBeVisible();
-    await page.locator('a[href="' + RUTAS.catalogo + '/' + IDS.aceite + '"]').click();
+    await page.getByRole('link', { name: ACEITE, exact: true }).click();
     await expect(page.getByRole('heading', { name: ACEITE })).toBeVisible();
+    await expect(page.getByText('Stock disponible: 4')).toBeVisible();
     await expect(page.getByRole('button', { name: /agregar.*carrito/i })).toHaveCount(0);
 });
 
@@ -28,7 +29,7 @@ test('VENDEDOR · rechaza rutas ajenas al rol y vuelve al login al cerrar sesió
         await expect(page.getByRole('alert')).toContainText('Tu rol no tiene permiso');
     }
     await page.getByRole('button', { name: 'Cerrar sesión' }).click();
-    await expect(page.getByRole('heading', { name: 'Iniciar sesión conectada' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Iniciar sesión' })).toBeVisible();
     await page.goto(RUTAS.ordenes);
     await expect(page).toHaveURL(new RegExp(RUTAS.login + '$'));
 });

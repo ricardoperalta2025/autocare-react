@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useCarritoConectado } from '../context/CarritoConectadoContext.jsx';
-import { RUTA_CATALOGO_CONECTADO, RUTA_COMPRA_CONECTADA } from '../context/catalogo.js';
+import { useSesionConectada } from '../context/sesionConectada.js';
+import { RUTA_COMPRA_CONECTADA } from '../context/catalogo.js';
 import { obtenerProductosApi } from '../services/catalogoApi.js';
 import { revisarCarritoConectado } from '../services/carritoService.js';
 
 export default function RevisionCarritoConectado() {
     const { carrito, intento } = useCarritoConectado();
+    const mostrarStock = ['ADMIN', 'VENDEDOR'].includes(useSesionConectada().usuario?.rol);
     const { pathname } = useLocation();
     const [revision, setRevision] = useState(null);
     const [intentos, setIntentos] = useState(0);
@@ -35,8 +37,7 @@ export default function RevisionCarritoConectado() {
 
     return (
         <>
-            <div className="container mt-4">
-                <Link to={RUTA_CATALOGO_CONECTADO}>Volver al catálogo conectado</Link>
+            <div className="tienda-contenedor revision-carrito">
                 {!actual && <p role="status">Consultando precios y stock…</p>}
                 {actual?.error && (
                     <div className="alert alert-danger mt-2" role="alert">
@@ -47,7 +48,8 @@ export default function RevisionCarritoConectado() {
                 )}
                 {insuficientes.map((linea) => (
                     <p key={linea.id} className="alert alert-warning mt-2" role="alert">
-                        {linea.nombre} · {linea.noDisponible ? 'El producto ya no existe.' : `Stock disponible: ${linea.stock}.`}
+                        {linea.nombre} · {linea.noDisponible ? 'El producto ya no existe.'
+                            : mostrarStock ? `Stock disponible: ${linea.stock}.` : 'Ajusta la cantidad a las unidades disponibles.'}
                     </p>
                 ))}
                 {preciosActualizados && <p className="alert alert-info mt-2">Hay precios actualizados por el servidor.</p>}

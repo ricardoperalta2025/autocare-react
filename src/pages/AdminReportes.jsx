@@ -1,10 +1,9 @@
-import { obtenerProductos, productoTieneStockCritico } from '../services/productosService';
-import { obtenerOrdenes } from '../services/ordenesService';
-import { obtenerClientes } from '../services/usuariosService';
-import { obtenerIncidencias } from '../services/incidenciasService';
-
-
+import { obtenerProductos, productoTieneStockCritico } from '../services/productosService.js';
+import { obtenerOrdenes } from '../services/ordenesService.js';
+import { obtenerClientes } from '../services/usuariosService.js';
+import { obtenerIncidencias } from '../services/incidenciasService.js';
 import { EstadoCatalogoAdmin } from '../components/EstadoCatalogoAdmin.jsx';
+import { EncabezadoAdmin, EtiquetaAdmin, PaginacionAdmin, ReferenciaAdmin, pesosAdmin, usePaginaAdmin } from '../components/AdminInterfaz.jsx';
 import { useConsultaConectada } from '../hooks/useOperacionesConectadas.js';
 import { useConsultaCatalogoAdmin } from '../hooks/useConsultaCatalogoAdmin.js';
 import { listarProductosAdmin } from '../services/adminCatalogoApi.js';
@@ -17,369 +16,74 @@ export default function AdminReportes({ conectado = false }) {
     const cuentas = useConsultaConectada(conectado, listarClientesApi);
     const posventa = useConsultaConectada(conectado, listarIncidenciasApi);
     const consultas = [catalogo, compras, cuentas, posventa];
-    if (conectado && consultas.some((consulta) => !consulta.datos)) return (
-        <main className="container my-5">
-            <h1>Reportes</h1>
-            {consultas.map((consulta, indice) => <EstadoCatalogoAdmin key={indice} consulta={consulta} />)}
-        </main>
-    );
+    const productos = conectado ? catalogo.datos ?? [] : obtenerProductos();
+    const ordenes = conectado ? (compras.datos ?? []).map(formatearRegistro) : obtenerOrdenes();
+    const clientes = conectado ? cuentas.datos ?? [] : obtenerClientes();
+    const incidencias = conectado ? (posventa.datos ?? []).map(formatearRegistro) : obtenerIncidencias();
+    const ventas = usePaginaAdmin(ordenes);
+    const inventario = usePaginaAdmin(productos);
+    const listo = !conectado || consultas.every((consulta) => consulta.datos);
 
-    const productos = conectado ? catalogo.datos : obtenerProductos();
-    const ordenes = conectado ? compras.datos.map(formatearRegistro) : obtenerOrdenes();
-    const clientes = conectado ? cuentas.datos : obtenerClientes();
-    const incidencias = conectado ? posventa.datos.map(formatearRegistro) : obtenerIncidencias();
+    // Los indicadores usan el conjunto completo, antes de paginar las tablas.
+    const total = ordenes.reduce((suma, orden) => suma + orden.total, 0);
+    const criticos = productos.filter(productoTieneStockCritico).length;
+    const agotados = productos.filter((producto) => producto.stock <= 0).length;
+    const indicadores = [
+        ['Total de compras simuladas', pesosAdmin.format(total)],
+        ['Órdenes registradas', ordenes.length],
+        ['Procesando', ordenes.filter((orden) => orden.estado === 'Procesando').length],
+        ['Enviadas', ordenes.filter((orden) => orden.estado === 'Enviado').length],
+        ['Clientes', clientes.length],
+        ['Stock normal', productos.length - criticos - agotados],
+        ['Stock crítico', criticos],
+        ['Agotados', agotados]
+    ];
 
-
-    const totalVentas = ordenes.reduce(
-        (acumulado, orden) =>
-            acumulado + orden.total,
-        0
-    );
-
-
-    const ordenesProcesando = ordenes.filter(
-        (orden) =>
-            orden.estado === 'Procesando'
-    );
-
-
-    const ordenesEnviadas = ordenes.filter(
-        (orden) =>
-            orden.estado === 'Enviado'
-    );
-
-
-    const productosStockCritico = productos.filter(productoTieneStockCritico);
-    const productosAgotados = productos.filter((producto) => producto.stock <= 0);
-
-
-    const incidenciasPendientes = incidencias.filter(
-        (incidencia) =>
-            incidencia.estado === 'Pendiente'
-    );
-
-
-    return (
-        <main className="container my-5">
-
-            <div className="mb-4">
-
-                <h1 className="mb-1">
-                    Reportes
-                </h1>
-
-                <p className="text-muted">
-                    Resumen general del funcionamiento de AutoCarePro.
-                </p>
-
+    return <main className="tienda-contenedor tienda-pagina admin-pagina">
+        <EncabezadoAdmin titulo="Reportes" descripcion="Ventas simuladas, inventario y seguimiento de solicitudes." />
+        {conectado && consultas.map((consulta, indice) => <EstadoCatalogoAdmin key={indice} consulta={consulta} />)}
+        {listo && <>
+            <div className="admin-indicadores mb-4">
+                {indicadores.map(([nombre, valor]) => <div className="admin-indicador" key={nombre}><span>{nombre}</span><strong>{valor}</strong></div>)}
             </div>
-
-
-            {/* INDICADORES PRINCIPALES */}
-
-            <div className="row g-4 mb-4">
-
-                <div className="col-md-6 col-lg-3">
-
-                    <div className="card shadow-sm h-100">
-
-                        <div className="card-body">
-
-                            <i className="bi bi-cash-stack fs-2 text-success"></i>
-
-                            <h5 className="mt-3">
-                                {conectado ? 'Total de compras simuladas' : 'Ventas acumuladas'}
-                            </h5>
-
-                            <h3>
-                                ${totalVentas.toLocaleString('es-CL')}
-                            </h3>
-
-                        </div>
-
-                    </div>
-
+            <section className="tienda-panel mb-3">
+                <h2 className="h5">Estado de incidencias</h2>
+                <div className="admin-indicadores">
+                    {['Pendiente', 'En revisión', 'Resuelta'].map((estado) => <div className="admin-indicador" key={estado}>
+                        <EtiquetaAdmin estado={estado} />
+                        <strong>{incidencias.filter((incidencia) => incidencia.estado === estado).length}</strong>
+                    </div>)}
                 </div>
-
-
-                <div className="col-md-6 col-lg-3">
-
-                    <div className="card shadow-sm h-100">
-
-                        <div className="card-body">
-
-                            <i className="bi bi-receipt fs-2 text-primary"></i>
-
-                            <h5 className="mt-3">
-                                Órdenes
-                            </h5>
-
-                            <h3>
-                                {ordenes.length}
-                            </h3>
-
-                            <small className="text-muted">
-                                {ordenesProcesando.length} procesando / {ordenesEnviadas.length} enviadas
-                            </small>
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-
-                <div className="col-md-6 col-lg-3">
-
-                    <div className="card shadow-sm h-100">
-
-                        <div className="card-body">
-
-                            <i className="bi bi-people fs-2 text-success"></i>
-
-                            <h5 className="mt-3">
-                                Clientes
-                            </h5>
-
-                            <h3>
-                                {clientes.length}
-                            </h3>
-
-                            <small className="text-muted">
-                                Usuarios registrados
-                            </small>
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-
-                <div className="col-md-6 col-lg-3">
-
-                    <div className="card shadow-sm h-100">
-
-                        <div className="card-body">
-
-                            <i className="bi bi-exclamation-triangle fs-2 text-danger"></i>
-
-                            <h5 className="mt-3">
-                                Stock crítico
-                            </h5>
-
-                            <h3>
-                                {productosStockCritico.length}
-                            </h3>
-
-                            <small className="text-muted">
-                                Agotados: {productosAgotados.length}
-                            </small>
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-
-            {/* RESUMEN DE ÓRDENES */}
-
-            <div className="card shadow-sm mb-4">
-
-                <div className="card-body">
-
-                    <h4 className="mb-3">
-                        Resumen de ventas
-                    </h4>
-
-                    {ordenes.length === 0 ? (
-
-                        <div className="alert alert-info mb-0">
-                            No existen ventas registradas.
-                        </div>
-
-                    ) : (
-
-                        <div className="table-responsive">
-
-                            <table className="table align-middle">
-
-                                <thead>
-
-                                    <tr>
-                                        <th>Orden</th>
-                                        <th>Fecha</th>
-                                        {!conectado && <th>Cliente</th>}
-                                        <th>Total</th>
-                                        {!conectado && <th>Pago</th>}
-                                        <th>Estado</th>
-                                    </tr>
-
-                                </thead>
-
-                                <tbody>
-
-                                    {ordenes.map((orden) => (
-
-                                        <tr key={orden.id}>
-
-                                            <td>
-                                                #{orden.id}
-                                            </td>
-
-                                            <td>
-                                                {orden.fecha}
-                                            </td>
-
-                                            {!conectado && <td>{orden.cliente?.nombre || 'Sin información'}</td>}
-
-                                            <td>
-                                                ${orden.total.toLocaleString('es-CL')}
-                                            </td>
-
-                                            {!conectado && <td>{orden.metodoPago || '-'}</td>}
-
-                                            <td>
-
-                                                <span
-                                                    className={
-                                                        orden.estado === 'Enviado'
-                                                            ? 'badge text-bg-success'
-                                                            : 'badge text-bg-warning'
-                                                    }
-                                                >
-                                                    {orden.estado}
-                                                </span>
-
-                                            </td>
-
-                                        </tr>
-
-                                    ))}
-
-                                </tbody>
-
-                            </table>
-
-                        </div>
-
-                    )}
-
-                </div>
-
-            </div>
-
-
-            {/* ESTADO DE PRODUCTOS */}
-
-            <div className="card shadow-sm mb-4">
-
-                <div className="card-body">
-
-                    <h4 className="mb-3">
-                        Estado de inventario
-                    </h4>
-
-                    <div className="table-responsive">
-
-                        <table className="table align-middle">
-
-                            <thead>
-
-                                <tr>
-                                    <th>Código</th>
-                                    <th>Producto</th>
-                                    <th>Categoría</th>
-                                    <th>Stock</th>
-                                    <th>Stock crítico</th>
-                                    <th>Estado</th>
-                                </tr>
-
-                            </thead>
-
-                            <tbody>
-
-                                {productos.map((producto) => {
-
-                                    const agotado = producto.stock <= 0;
-                                    const critico = productoTieneStockCritico(producto);
-
-                                    return (
-
-                                        <tr key={producto.id}>
-
-                                            <td>
-                                                {producto.codigo}
-                                            </td>
-
-                                            <td>
-                                                {producto.nombre}
-                                            </td>
-
-                                            <td>
-                                                {producto.categoria}
-                                            </td>
-
-                                            <td>
-                                                {producto.stock}
-                                            </td>
-
-                                            <td>
-                                                {producto.stockCritico}
-                                            </td>
-
-                                            <td>
-
-                                                <span
-                                                    className={`badge text-bg-${agotado ? 'danger' : critico ? 'warning' : 'success'}`}
-                                                >
-                                                    {agotado ? 'Agotado' : critico ? 'Crítico' : 'Normal'}
-                                                </span>
-
-                                            </td>
-
-                                        </tr>
-
-                                    );
-
-                                })}
-
-                            </tbody>
-
-                        </table>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-
-            {/* INCIDENCIAS */}
-
-            <div className="card shadow-sm">
-
-                <div className="card-body">
-
-                    <h4>
-                        Estado de incidencias
-                    </h4>
-
-                    <p className="mb-1">
-                        Total registradas: <strong>{incidencias.length}</strong>
-                    </p>
-
-                    <p className="mb-0">
-                        Pendientes: <strong>{incidenciasPendientes.length}</strong>
-                    </p>
-
-                </div>
-
-            </div>
-
-        </main>
-    );
+            </section>
+            <section className="tienda-panel mb-3" aria-label="Resumen de ventas">
+                <h2 className="h5">Resumen de ventas</h2>
+                {ordenes.length ? <>
+                    <div className="table-responsive"><table className="table admin-tabla align-middle">
+                        <thead><tr><th>Orden</th><th>Fecha</th>{!conectado && <th>Cliente</th>}<th>Total</th>{!conectado && <th>Pago</th>}<th>Estado</th></tr></thead>
+                        <tbody>{ventas.filas.map((orden) => <tr key={orden.id}>
+                            <td><ReferenciaAdmin id={orden.id} /></td><td className="admin-fecha">{orden.fecha}</td>
+                            {!conectado && <td>{orden.cliente?.nombre || 'Sin información'}</td>}
+                            <td>{pesosAdmin.format(orden.total)}</td>{!conectado && <td>{orden.metodoPago || '—'}</td>}
+                            <td><EtiquetaAdmin estado={orden.estado} /></td>
+                        </tr>)}</tbody>
+                    </table></div>
+                    <PaginacionAdmin datos={ventas} seccion="ventas" />
+                </> : <p className="mb-0">No existen ventas registradas.</p>}
+            </section>
+            <section className="tienda-panel" aria-label="Estado de inventario">
+                <h2 className="h5">Estado de inventario</h2>
+                {productos.length ? <>
+                    <div className="table-responsive"><table className="table admin-tabla align-middle">
+                        <thead><tr><th>Código</th><th>Producto</th><th>Categoría</th><th>Stock</th><th>Umbral crítico</th><th>Estado</th></tr></thead>
+                        <tbody>{inventario.filas.map((producto) => <tr key={producto.id}>
+                            <td>{producto.codigo}</td><td>{producto.nombre}</td><td>{producto.categoria}</td>
+                            <td>{producto.stock}</td><td>{producto.stockCritico}</td>
+                            <td><EtiquetaAdmin estado={producto.stock <= 0 ? 'Agotado' : productoTieneStockCritico(producto) ? 'Stock crítico' : 'Normal'} /></td>
+                        </tr>)}</tbody>
+                    </table></div>
+                    <PaginacionAdmin datos={inventario} seccion="inventario" />
+                </> : <p className="mb-0">No existen productos registrados.</p>}
+            </section>
+        </>}
+    </main>;
 }

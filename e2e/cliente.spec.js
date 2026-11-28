@@ -12,8 +12,8 @@ async function completarEntrega(page, datos = ENTREGA) {
 
 async function prepararCompra(page) {
     await iniciarSesion(page, 'CLIENTE');
-    await page.getByRole('button', { name: 'Agregar ' + ACEITE + ' al carrito conectado' }).click();
-    await page.getByRole('link', { name: 'Carrito conectado' }).click();
+    await page.getByRole('button', { name: 'Agregar ' + ACEITE + ' al carrito' }).click();
+    await page.getByRole('link', { name: 'Carrito', exact: true }).click();
     const cantidad = page.getByRole('spinbutton', { name: 'Cantidad:' });
     await cantidad.fill('2');
     await expect(page.getByText('Cantidad total: 2')).toBeVisible();
@@ -42,7 +42,7 @@ test('CLIENTE · rechaza credenciales incorrectas y permite cerrar sesión', asy
     await page.getByRole('button', { name: 'Cerrar sesión' }).click();
     await page.goto(RUTAS.ordenes);
     await expect(page).toHaveURL(new RegExp(RUTAS.login + '$'));
-    await expect(page.getByRole('heading', { name: 'Iniciar sesión conectada' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Iniciar sesión' })).toBeVisible();
 });
 
 test('CLIENTE · compra con despacho y consulta el comprobante histórico', async ({ page, api }, testInfo) => {
@@ -61,7 +61,7 @@ test('CLIENTE · compra con despacho y consulta el comprobante histórico', asyn
     await expect(page.getByRole('region', { name: 'Datos de entrega' })).toContainText(ENTREGA.direccion);
     await page.getByRole('navigation').getByRole('link', { name: 'Mis órdenes' }).click();
     await expect(page.getByRole('link', { name: 'Orden ' + api.compras[0].clave })).toBeVisible();
-    await page.getByRole('link', { name: 'Carrito conectado' }).click();
+    await page.getByRole('link', { name: 'Carrito', exact: true }).click();
     await expect(page.getByText('Tu carrito está vacío')).toBeVisible();
 });
 
@@ -87,7 +87,7 @@ test('CLIENTE · conserva el carrito si el servidor rechaza el stock', async ({ 
     await expect(page.getByRole('alert')).toContainText('Stock insuficiente para la cantidad solicitada.');
     await expect(page.getByRole('link', { name: 'Ver comprobante' })).toHaveCount(0);
     expect(api.ordenes).toHaveLength(2);
-    await page.getByRole('link', { name: 'Carrito conectado' }).click();
+    await page.getByRole('link', { name: 'Carrito', exact: true }).click();
     await expect(page.getByText('Cantidad total: 2')).toBeVisible();
 });
 
@@ -114,7 +114,10 @@ test('CLIENTE · reporta una incidencia para una orden propia', async ({ page },
     await page.getByPlaceholder('Ej: Producto recibido con problemas').fill('Consulta de entrega');
     await page.getByPlaceholder('Describe el problema con el mayor detalle posible.').fill('Solicito confirmar el despacho.');
     await page.getByRole('button', { name: 'Enviar incidencia' }).click();
-    await expect(page.getByRole('row', { name: /Consulta de entrega/ })).toContainText('Pendiente');
+    const incidencia = page.locator('details.incidencia').filter({ hasText: 'Consulta de entrega' });
+    await expect(incidencia).toContainText('Pendiente');
+    await incidencia.locator('summary').click();
+    await expect(incidencia.getByText('Solicito confirmar el despacho.')).toBeVisible();
     await capturar(page, testInfo, 'cliente-incidencia-simulada');
 });
 
@@ -143,8 +146,8 @@ test('CLIENTE · actualiza el perfil y valida el formulario de contacto', async 
 
 test('CLIENTE · elimina un producto del carrito', async ({ page }) => {
     await iniciarSesion(page, 'CLIENTE');
-    await page.getByRole('button', { name: 'Agregar ' + FILTRO + ' al carrito conectado' }).click();
-    await page.getByRole('link', { name: 'Carrito conectado' }).click();
+    await page.getByRole('button', { name: 'Agregar ' + FILTRO + ' al carrito' }).click();
+    await page.getByRole('link', { name: 'Carrito', exact: true }).click();
     await expect(page.getByText(FILTRO, { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Eliminar' }).click();
     await expect(page.getByText('Tu carrito está vacío')).toBeVisible();

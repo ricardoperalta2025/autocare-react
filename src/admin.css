@@ -1,0 +1,73 @@
+.admin-pagina .tienda-encabezado { margin-bottom: 1.5rem; }
+.admin-pagina :is(h1, h2, h3) { letter-spacing: -.025em; }
+.admin-pagina .tienda-encabezado h1 { font-size: clamp(1.8rem, 4vw, 2.8rem); font-weight: 800; }
+.admin-panel-portada {
+    color: #fff; background: linear-gradient(110deg, #17181e 65%, #361a24);
+    border-radius: 16px; padding: clamp(1.1rem, 4vw, 2.25rem); margin-bottom: 1.4rem;
+}
+.admin-panel-portada .tienda-encabezado { margin: 0; }
+.admin-panel-portada .text-body-secondary { color: #e2e2ea !important; }
+.admin-indicadores, .admin-modulos { display: grid; gap: .85rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); }
+.admin-modulos { grid-template-columns: repeat(auto-fit, minmax(min(100%, 265px), 1fr)); }
+.admin-indicador, .admin-modulo {
+    padding: 1rem; background: #fff; border: 1px solid var(--ac-line); border-radius: 13px; min-width: 0;
+}
+.admin-indicador strong { display: block; font-size: clamp(1.25rem, 4vw, 1.8rem); overflow-wrap: anywhere; }
+.admin-indicador > span:not(.estado-pedido), .admin-modulo p { color: var(--ac-muted); }
+.admin-modulo { color: inherit; text-decoration: none; display: block; }
+.admin-modulo:hover { color: var(--ac-ink); border-color: var(--ac-red); }
+.admin-modulo i { color: var(--ac-red); font-size: 1.22rem; }
+.admin-modulo p { margin: .35rem 0 0; }
+.admin-tabla { margin-bottom: 0; }
+.admin-tabla thead th {
+    font-size: .78rem; color: #454955; background-color: #f2f2f6; white-space: nowrap;
+}
+.admin-tabla :is(th, td) { padding: .7rem; }
+.admin-tabla tbody tr:last-child td { border-bottom: 0; }
+.admin-tabla .btn, .admin-paginacion .btn { white-space: nowrap; min-height: 38px; }
+.admin-tabla time, .admin-fecha, .admin-referencia { white-space: nowrap; }
+.admin-referencia { font-family: var(--bs-font-monospace); color: #4e5261; }
+.admin-pagina .table-responsive { border: 1px solid var(--ac-line); border-radius: 10px; }
+.admin-tabla .admin-producto { min-width: 225px; display: flex; align-items: center; gap: .75rem; }
+.admin-miniatura { width: 52px; height: 52px; object-fit: contain; background: #f7f7fa; border-radius: 8px; }
+.admin-imagen-previa { width: 115px; height: 115px; object-fit: contain; background: #f7f7fa; border: 1px solid var(--ac-line); border-radius: 9px; }
+.admin-paginacion, .admin-pagina-acciones { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; }
+.admin-paginacion { justify-content: space-between; padding: .9rem 0 0; color: var(--ac-muted); font-size: .9rem; }
+.admin-pagina-acciones label { display: flex; gap: .45rem; align-items: center; white-space: nowrap; }
+.admin-pagina-acciones select { width: auto; }
+.admin-acciones { display: flex; flex-wrap: wrap; gap: .45rem; align-items: center; }
+.admin-incidencia { border-bottom: 1px solid var(--ac-line); }
+.admin-incidencia:last-of-type { border-bottom: 0; }
+.admin-incidencia summary { padding: .85rem 0; }
+.admin-incidencia summary strong { margin-inline: .35rem; overflow-wrap: anywhere; }
+.admin-incidencia .estado-pedido { margin-left: .35rem; }
+.admin-incidencia-datos { padding: .8rem; margin-bottom: .7rem; border-radius: 8px; background: #f6f6f9; }
+.admin-incidencia-datos p, .incidencia-respuesta { white-space: pre-wrap; overflow-wrap: anywhere; }
+.estado-pedido.revision { background: #e7efff; color: #214b92; }
+.admin-pagina .estado-pedido.agotado { background: #fce8e9; color: #8a1d29; }
+@media (max-width: 575px) {
+    .admin-pagina :is(.btn, .form-select, .form-control) { min-height: 44px; }
+    .admin-pagina .tienda-encabezado { align-items: start; gap: .8rem; }
+    .admin-pagina-acciones { gap: .45rem; }
+    .admin-pagina-acciones .btn { padding-inline: .5rem; }
+    .admin-tabla-productos :is(tbody, tr) { width: 100%; }
+    .admin-tabla-productos thead {
+        position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%);
+    }
+    .admin-tabla-productos tbody { display: block; }
+    .admin-tabla-productos tbody tr {
+        display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: .55rem;
+        border-bottom: 1px solid var(--ac-line);
+    }
+    .admin-tabla-productos tbody tr:last-child { border-bottom: 0; }
+    .admin-tabla-productos td {
+        border: 0; padding: .35rem; min-width: 0; overflow-wrap: anywhere; text-align: left !important;
+    }
+    .admin-tabla-productos td[data-etiqueta]::before {
+        content: attr(data-etiqueta); display: block; color: var(--ac-muted); font-size: .78rem;
+    }
+    .admin-tabla-productos td:nth-child(2) { grid-area: 1 / 1 / auto / -1; }
+    .admin-tabla-productos td:last-child { grid-column: 1 / -1; }
+    .admin-tabla-productos .admin-producto { min-width: 0; }
+    .admin-tabla-productos .admin-acciones { justify-content: flex-start !important; }
+}

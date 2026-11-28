@@ -92,7 +92,8 @@ test('ADMIN · despacha órdenes y resuelve incidencias desde sus listados', asy
     await capturar(page, testInfo, 'admin-despacho-simulado');
 
     await page.goto(RUTAS.admin + '/incidencias');
-    const incidencia = page.getByRole('row', { name: /Seguimiento inicial/ });
+    await page.getByText('Seguimiento inicial', { exact: true }).click();
+    const incidencia = page.locator('details').filter({ hasText: 'Seguimiento inicial' });
     await expect(incidencia).toContainText('Pendiente');
     page.once('dialog', (dialogo) => dialogo.accept());
     await incidencia.getByRole('button', { name: 'Marcar resuelta' }).click();
@@ -108,15 +109,133 @@ test('ADMIN · distingue stock crítico y agotado en los avisos y el reporte', a
     await page.goto(RUTAS.admin + '/notificaciones');
     await expect(page.getByText(FILTRO, { exact: true })).toBeVisible();
     await expect(page.getByText('Stock crítico: 1').first()).toBeVisible();
-    await expect(page.getByText('Agotado', { exact: true })).toBeVisible();
+    await expect(page.getByRole('table').getByText('Agotado', { exact: true })).toBeVisible();
+    await page.getByRole('combobox', { name: 'Tipo de alerta' }).selectOption('Agotado');
+    await expect(page.locator('tbody tr')).toHaveCount(1);
+    await expect(page.getByRole('table').getByText(agotado, { exact: true })).toBeVisible();
     await page.goto(RUTAS.admin + '/productos');
     await expect(page.getByRole('row', { name: new RegExp(agotado) })).toContainText('Agotado');
     await expect(page.getByRole('row', { name: new RegExp(FILTRO) })).toContainText('Stock crítico');
     await page.goto(RUTAS.admin + '/reportes');
     await expect(page.getByText('Total de compras simuladas')).toBeVisible();
     await expect(page.getByText('$18.000', { exact: true })).toBeVisible();
-    await expect(page.getByText('Agotados: 1', { exact: true })).toBeVisible();
+    await expect(page.locator('.admin-indicador').filter({ hasText: /^Agotados1$/ })).toBeVisible();
     await expect(page.getByRole('row', { name: new RegExp(agotado) })).toContainText('Agotado');
     await expect(page.getByRole('row', { name: new RegExp(FILTRO) })).toContainText(/crítico/i);
     await capturar(page, testInfo, 'admin-reporte-simulado');
+});
+
+test('ADMIN · pagina y filtra el catálogo completo, ajusta la última página y calcula reportes globales', async ({ page, api }, testInfo) => {
+    const base = api.productos[0];
+    for (let numero = 3; numero <= 11; numero += 1) {
+        api.productos.push({ ...base, id: numero === 11 ? IDS.productoNuevo : String(numero).padStart(24, '0'),
+            codigo: 'TEST-REP-' + numero, nombre: 'Repuesto demostrativo ' + numero, stock: numero === 11 ? 0 : 5 });
+    }
+    const orden = api.ordenes[0];
+    for (let numero = 3; numero <= 12; numero += 1) {
+        api.ordenes.push({ ...orden, id: String(300 + numero).padStart(24, '0'), estado: 'ENVIADO' });
+    }
+    await iniciarSesion(page, 'ADMIN');
+    await expect(page.getByRole('link', { name: 'Administrar productos' })).toContainText('11');
+    await capturar(page, testInfo, 'etapa2-panel');
+    await page.getByRole('link', { name: 'Administrar productos' }).click();
+    await expect(page.getByText('Mostrando 1–10 de 11 registros')).toBeVisible();
+    await expect(page.locator('tbody tr')).toHaveCount(10);
+    await capturar(page, testInfo, 'etapa2-productos');
+    await page.getByRole('button', { name: 'Siguiente' }).click();
+    await expect(page.getByText('Mostrando 11–11 de 11 registros')).toBeVisible();
+    await page.getByLabel('Buscar producto').fill('TEST-REP-11');
+    await expect(page.getByText('Mostrando 1 de 1 registro')).toBeVisible();
+    await expect(page.locator('tbody tr')).toContainText('Repuesto demostrativo 11');
+    await page.getByLabel('Buscar producto').clear();
+    await page.getByLabel('Filtrar por categoría').selectOption(IDS.filtros);
+    await expect(page.locator('tbody tr')).toHaveCount(1);
+    await expect(page.locator('tbody tr')).toContainText(FILTRO);
+    await page.getByLabel('Filtrar por categoría').selectOption('');
+    await page.getByRole('combobox', { name: 'Registros por página de productos' }).selectOption('20');
+    await expect(page.locator('tbody tr')).toHaveCount(11);
+
+    await page.goto(RUTAS.admin + '/reportes');
+    const ventas = page.getByRole('region', { name: 'Resumen de ventas' });
+    const inventario = page.getByRole('region', { name: 'Estado de inventario' });
+    await expect(ventas.getByText('Mostrando 1–10 de 12 registros')).toBeVisible();
+    await expect(inventario.getByText('Mostrando 1–10 de 11 registros')).toBeVisible();
+    await expect(page.getByText('$108.000', { exact: true })).toBeVisible();
+    await expect(page.locator('.admin-indicador').filter({ hasText: /^Agotados1$/ })).toBeVisible();
+    await capturar(page, testInfo, 'etapa2-reportes');
+    await ventas.getByRole('button', { name: 'Siguiente' }).click();
+    await expect(ventas.getByText('Mostrando 11–12 de 12 registros')).toBeVisible();
+    await expect(page.getByText('$108.000', { exact: true })).toBeVisible();
+    await expect(inventario.getByText('Mostrando 1–10 de 11 registros')).toBeVisible();
+
+    await page.goto(RUTAS.admin + '/productos');
+    await page.getByRole('button', { name: 'Siguiente' }).click();
+    page.once('dialog', (dialogo) => dialogo.accept());
+    await page.getByRole('row', { name: /Repuesto demostrativo 11/ }).getByRole('button', { name: 'Eliminar' }).click();
+    await expect(page.getByText('Mostrando 1–10 de 10 registros')).toBeVisible();
+    await expect(page.locator('tbody tr')).toHaveCount(10);
+});
+
+test('ADMIN y CLIENTE · guardan y consultan el seguimiento de una incidencia antigua', async ({ page, api }, testInfo) => {
+    expect(api.incidencias[0].respuestaAdmin).toBeUndefined();
+    api.incidencias.push({ ...api.incidencias[0], id: IDS.incidenciaNueva, compradorId: IDS.otraCuenta,
+        asunto: 'Incidencia de otra cuenta' });
+    await iniciarSesion(page, 'ADMIN');
+    await page.goto(RUTAS.admin + '/incidencias');
+    await page.getByText('Seguimiento inicial', { exact: true }).click();
+    const ficha = page.locator('details').filter({ hasText: 'Seguimiento inicial' });
+    await ficha.getByRole('combobox', { name: 'Estado', exact: true }).selectOption('EN_REVISION');
+    await ficha.getByLabel('Respuesta administrativa').fill('Estamos revisando el despacho con el equipo.');
+    await ficha.getByRole('button', { name: 'Guardar gestión' }).click();
+    await expect(page.getByRole('status').filter({ hasText: 'Incidencia actualizada.' })).toBeVisible();
+    await expect(ficha.locator('summary')).toContainText('En revisión');
+    await expect(ficha.getByRole('combobox', { name: 'Estado', exact: true }).locator('option[value="PENDIENTE"]')).toHaveCount(0);
+    await capturar(page, testInfo, 'etapa2-incidencia-admin');
+    await page.getByLabel('Filtrar incidencias por estado').selectOption('En revisión');
+    await expect(page.getByText('Incidencia de otra cuenta', { exact: true })).toHaveCount(0);
+    await expect(ficha).toBeVisible();
+    await ficha.getByRole('combobox', { name: 'Estado', exact: true }).selectOption('RESUELTA');
+    await ficha.getByLabel('Respuesta administrativa').fill('El despacho fue verificado y la solicitud quedó resuelta.');
+    await ficha.getByRole('button', { name: 'Guardar gestión' }).click();
+    await expect(page.getByText('No hay incidencias que coincidan con el estado.')).toBeVisible();
+    expect(api.incidencias[0]).toMatchObject({ estado: 'RESUELTA',
+        respuestaAdmin: 'El despacho fue verificado y la solicitud quedó resuelta.' });
+
+    await page.getByRole('button', { name: 'Cerrar sesión' }).click();
+    await iniciarSesion(page, 'CLIENTE');
+    await page.goto(RUTAS.incidencias);
+    await page.getByText('Seguimiento inicial', { exact: true }).click();
+    await expect(ficha).toContainText('Resuelta');
+    await expect(ficha).toContainText('El despacho fue verificado y la solicitud quedó resuelta.');
+    await expect(page.getByText('Incidencia de otra cuenta', { exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Guardar gestión' })).toHaveCount(0);
+    await capturar(page, testInfo, 'etapa2-incidencia-cliente');
+});
+
+test('ADMIN y VENDEDOR · recorren sus pantallas a 390 px sin desbordamiento', async ({ page }, testInfo) => {
+    await iniciarSesion(page, 'ADMIN');
+    await page.setViewportSize({ width: 390, height: 844 });
+    const ancho = () => page.evaluate(() => document.documentElement.scrollWidth);
+    for (const ruta of ['', '/productos', '/categorias', '/usuarios', '/ordenes', '/incidencias', '/notificaciones', '/reportes']) {
+        await page.goto(RUTAS.admin + ruta);
+        await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+        await expect(page.getByText('Cargando datos…')).toHaveCount(0);
+        expect(await ancho(), ruta).toBeLessThanOrEqual(390);
+        if (ruta === '/productos') await capturar(page, testInfo, 'etapa2-admin-movil');
+    }
+    await page.getByRole('button', { name: 'Abrir navegación' }).click();
+    await page.getByRole('button', { name: 'Cerrar sesión' }).click();
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await iniciarSesion(page, 'VENDEDOR');
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(RUTAS.catalogo);
+    await expect(page.getByText('Stock disponible: 4')).toBeVisible();
+    await expect(page.getByRole('button', { name: /agregar/i })).toHaveCount(0);
+    expect(await ancho()).toBeLessThanOrEqual(390);
+    await page.goto(RUTAS.ordenes);
+    await page.getByRole('link', { name: 'Ver detalle' }).first().click();
+    await expect(page.getByRole('region', { name: 'Datos de entrega' })).toHaveCount(0);
+    await page.getByRole('link', { name: 'Ver comprobante' }).click();
+    await expect(page.getByRole('heading', { name: 'Comprobante de compra' })).toBeVisible();
+    expect(await ancho()).toBeLessThanOrEqual(390);
 });

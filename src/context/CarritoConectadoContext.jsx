@@ -64,19 +64,29 @@ export function CarritoConectadoProvider({ children }) {
         const actual = leer();
         if (sesion.usuario?.rol === 'VENDEDOR' || actual.intento || operaciones.current.has(clave)) return;
         const carrito = actualizar(actual.carrito);
+        if (carrito === actual.carrito) return;
         guardarEstado({ ...actual, carrito, ordenConfirmada: null });
         setMensaje(null);
     }
 
-    function agregarProducto(producto) {
+    function agregarProducto(producto, unidades = 1) {
         if (!esObjectId(producto.id) || !Number.isInteger(producto.stock) || producto.stock < 1 ||
-            !Number.isFinite(producto.precioFinal) || producto.precioFinal < 0) return;
-        actualizarCarrito((carrito) => {
-            const previa = carrito.find((linea) => mismoIdProducto(linea.id, producto.id));
-            if (!previa) return [...carrito, lineaCarritoConectado(producto, 1)];
-            const cantidad = previa.cantidad < producto.stock ? previa.cantidad + 1 : previa.cantidad;
-            return carrito.map((linea) => linea === previa ? lineaCarritoConectado(producto, cantidad) : linea);
-        });
+            !Number.isFinite(producto.precioFinal) || producto.precioFinal < 0 ||
+            !Number.isSafeInteger(unidades) || unidades < 1) return 0;
+        let agregadas = 0;
+        try {
+            actualizarCarrito((carrito) => {
+                const previa = carrito.find((linea) => mismoIdProducto(linea.id, producto.id));
+                const cantidadAnterior = previa?.cantidad ?? 0;
+                if (unidades > producto.stock - cantidadAnterior) return carrito;
+                agregadas = unidades;
+                const linea = lineaCarritoConectado(producto, cantidadAnterior + unidades);
+                return previa ? carrito.map((item) => item === previa ? linea : item) : [...carrito, linea];
+            });
+        } catch {
+            return 0;
+        }
+        return agregadas;
     }
 
     function cambiarCantidad(id, cantidad, stock) {

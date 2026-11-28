@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import App from '../App.jsx';
 import { CarritoProvider } from '../context/CarritoContext.jsx';
 import SesionConectadaProvider from '../context/SesionConectadaProvider.jsx';
@@ -60,17 +60,17 @@ describe('Demostración Railway', () => {
         montar('/admin');
         expect(await screen.findByText(producto.nombre)).toBeTruthy();
         expect(window.location.pathname).toBe(RUTA_CATALOGO_CONECTADO);
-        expect(screen.queryByRole('link', { name: 'Volver al catálogo local' })).toBeNull();
+        expect(screen.queryByRole('link', { name: 'Volver al simulador' })).toBeNull();
     });
 
     it('permite el login y mantiene el registro cerrado ante una configuración ambigua', async () => {
         const red = montar(RUTA_REGISTRO_CONECTADO, { configuracion: { registro: 'true', escrituras: null } });
-        await screen.findByText('El registro conectado está deshabilitado.');
+        await screen.findByText('El registro no está disponible por el momento.');
         const boton = screen.getByRole('button', { name: 'Crear cuenta' });
         expect(boton.disabled).toBeTrue();
         fireEvent.click(boton);
         expect(red.calls.allArgs().every(([, opciones]) => opciones.method === 'GET')).toBeTrue();
-        fireEvent.click(screen.getByRole('link', { name: 'Iniciar Sesión' }));
+        fireEvent.click(within(screen.getByRole('navigation', { name: 'Navegación principal' })).getByRole('link', { name: 'Iniciar sesión' }));
         expect(window.location.pathname).toBe(RUTA_LOGIN_CONECTADO);
         expect(screen.getByRole('button', { name: 'Ingresar' }).disabled).toBeFalse();
     });
@@ -285,9 +285,9 @@ describe('Demostración Railway', () => {
         rechazar = false;
         await waitFor(() => { if (guardar.disabled) throw new Error('La edición sigue en curso.'); });
         fireEvent.click(guardar);
-        expect(await screen.findByRole('heading', { name: 'Detalle del Usuario' })).toBeTruthy();
+        expect(await screen.findByRole('heading', { name: 'Detalle del cliente' })).toBeTruthy();
         expect(await screen.findByText('La Florida')).toBeTruthy();
-        const detalleOrden = (await screen.findByText('#' + orden.id)).closest('tr');
+        const detalleOrden = (await screen.findByText('#' + orden.id.slice(-8))).closest('tr');
         expect(detalleOrden.querySelector('a').getAttribute('href')).toBe('/catalogo-conectado/ordenes/' + orden.id);
     });
 
@@ -304,15 +304,17 @@ describe('Demostración Railway', () => {
                 return new Response(null, { status: 204 });
             }
         });
+        const ficha = (await screen.findByText(incidencia.asunto)).closest('details');
+        fireEvent.click(ficha.querySelector('summary'));
         const resolver = await screen.findByRole('button', { name: 'Marcar resuelta' });
         await waitFor(() => { if (resolver.disabled) throw new Error('La resolución sigue cerrada.'); });
         fireEvent.click(resolver);
         expect((await screen.findByRole('alert')).textContent).toContain('Resolución prohibida.');
-        expect(screen.getByText('Pendiente')).toBeTruthy();
+        expect(ficha.querySelector('summary').textContent).toContain('Pendiente');
         permitir = true;
         await waitFor(() => { if (resolver.disabled) throw new Error('La resolución sigue en curso.'); });
         fireEvent.click(resolver);
-        expect(await screen.findByText('Resuelta')).toBeTruthy();
+        expect(await screen.findByText('Resuelta', { selector: 'summary span' })).toBeTruthy();
         expect(screen.queryByRole('button', { name: 'Marcar resuelta' })).toBeNull();
     });
 });

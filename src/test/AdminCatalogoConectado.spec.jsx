@@ -128,12 +128,12 @@ describe('Administración del catálogo conectado', () => {
         } });
         montar(RUTA_ADMIN_CONECTADA);
         await screen.findByRole('heading', { name: 'Panel de Administración' });
-        const tarjeta = (nombre) => screen.getByRole('heading', { name: nombre }).closest('.card');
-        await within(tarjeta('Productos')).findByText('1');
-        expect(within(tarjeta('Categorías')).getByText('2')).toBeTruthy();
-        expect(await within(tarjeta('Órdenes')).findByText('1')).toBeTruthy();
-        expect(await within(tarjeta('Usuarios')).findByText('3')).toBeTruthy();
-        expect(await within(tarjeta('Incidencias')).findByText('1')).toBeTruthy();
+        const tarjeta = (nombre) => screen.getByRole('link', { name: 'Administrar ' + nombre });
+        await within(tarjeta('productos')).findByText('1');
+        expect(within(tarjeta('categorías')).getByText('2')).toBeTruthy();
+        expect(await within(tarjeta('órdenes')).findByText('1')).toBeTruthy();
+        expect(await within(tarjeta('usuarios')).findByText('3')).toBeTruthy();
+        expect(await within(tarjeta('incidencias')).findByText('1')).toBeTruthy();
         expect(screen.queryByText('· Simulación local')).toBeNull();
     });
 

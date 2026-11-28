@@ -1,413 +1,91 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate, useOutletContext } from 'react-router-dom';
-
-import { useCarrito } from '../context/CarritoContext';
-import { useCarritoConectado } from '../context/CarritoConectadoContext.jsx';
+import { useCarrito } from '../context/CarritoContext.jsx';
 import { RUTA_CARRITO_CONECTADO, RUTA_CATALOGO_CONECTADO, RUTA_COMPRA_CONECTADA } from '../context/catalogo.js';
-import { obtenerSesion } from '../services/usuariosService';
+import { obtenerSesion } from '../services/usuariosService.js';
 import { useSesionConectada } from '../context/sesionConectada.js';
+import ResumenCompra from '../components/ResumenCompra.jsx';
 
+const campos = [
+    ['nombre', 'Nombre completo', 'text', 150, 'name'],
+    ['correo', 'Correo electrónico', 'email', 254, 'email'],
+    ['telefono', 'Teléfono', 'tel', 30, 'tel'],
+    ['comuna', 'Comuna', 'text', 100, 'address-level2'],
+    ['direccion', 'Dirección de entrega', 'text', 300, 'street-address']
+];
 
 export default function Checkout({ conectado = false }) {
-    const [errorEntrega, setErrorEntrega] = useState('');
-
+    const [error, setError] = useState('');
     const local = useCarrito();
-    const remoto = useCarritoConectado();
     const revision = useOutletContext();
     const carrito = conectado ? revision.lineas : local.carrito;
-    const cantidadTotal = conectado ? remoto.cantidadTotal : local.cantidadTotal;
     const total = conectado ? revision.total : local.total;
     const { state } = useLocation();
-
-    const navigate = useNavigate();
-
+    const navegar = useNavigate();
     const sesionRemota = useSesionConectada();
     const sesion = conectado ? sesionRemota.usuario : obtenerSesion();
-    const entregaPrevia = conectado && state?.compradorId === sesion?.id ? state : null;
-
-
-    const [datosCliente, setDatosCliente] = useState(entregaPrevia?.datosCliente ?? {
-
-        nombre: sesion
-            ? `${sesion.nombre || ''} ${sesion.apellido || ''}`.trim()
-            : '',
-
-        correo:
-            sesion?.correo || '',
-
-        telefono:
-            sesion?.telefono || '',
-
-        direccion:
-            sesion?.direccion || '',
-
-        comuna:
-            sesion?.comuna || ''
-
+    const previa = conectado && state?.compradorId === sesion?.id ? state : null;
+    const [datosCliente, setDatosCliente] = useState(previa?.datosCliente ?? {
+        nombre: [sesion?.nombre, sesion?.apellido].filter(Boolean).join(' '),
+        correo: sesion?.correo || '', telefono: sesion?.telefono || '',
+        comuna: sesion?.comuna || '', direccion: sesion?.direccion || ''
     });
+    const [tipoEntrega, setTipoEntrega] = useState(previa?.tipoEntrega ?? '');
+    const rutaCarrito = conectado ? RUTA_CARRITO_CONECTADO : '/carrito';
 
-
-    const [tipoEntrega, setTipoEntrega] =
-        useState(entregaPrevia?.tipoEntrega ?? '');
-
-
-    const formatoPrecio = new Intl.NumberFormat('es-CL', {
-        style: 'currency',
-        currency: 'CLP',
-        maximumFractionDigits: 0
-    });
-
-
-    function manejarCambio(evento) {
-
-        const { name, value } =
-            evento.target;
-
-        setDatosCliente({
-            ...datosCliente,
-            [name]: value
-        });
-    }
-
-
-    function continuarPago(evento) {
-
+    function continuar(evento) {
         evento.preventDefault();
-
-
-        if (carrito.length === 0 || (conectado && !revision.puedeContinuar)) {
+        if (!carrito.length || (conectado && !revision.puedeContinuar)) return;
+        if (campos.some(([campo]) => !datosCliente[campo]?.trim()) || !tipoEntrega.trim()) {
+            setError('Completa todos los datos de entrega con un valor válido.');
             return;
         }
-
-
-        const campos = ['nombre', 'correo', 'telefono', 'comuna', 'direccion'];
-        if (campos.some((campo) => !datosCliente[campo]?.trim()) || !tipoEntrega.trim()) {
-            setErrorEntrega('Completa todos los datos de entrega con un valor válido.');
-            return;
-        }
-        const entrega = Object.fromEntries(campos.map((campo) => [campo, datosCliente[campo].trim()]));
-        navigate(conectado ? RUTA_COMPRA_CONECTADA : '/pago', {
+        const entrega = Object.fromEntries(campos.map(([campo]) => [campo, datosCliente[campo].trim()]));
+        navegar(conectado ? RUTA_COMPRA_CONECTADA : '/pago', {
             state: conectado ? { datosCliente: entrega, tipoEntrega, compradorId: sesion.id } : { datosCliente: entrega, tipoEntrega }
         });
     }
 
+    if (!carrito.length) return <main className="tienda-contenedor tienda-pagina">
+        <section className="tienda-vacio">
+            <h1>Tu carrito está vacío</h1><p>Agrega al menos un producto antes de continuar.</p>
+            <Link className="btn btn-danger" to={conectado ? RUTA_CATALOGO_CONECTADO : '/productos'}>Ver productos</Link>
+            {conectado && <Link className="btn btn-outline-dark ms-2" to={rutaCarrito}>Revisar carrito</Link>}
+        </section>
+    </main>;
 
-    /*
-        PROTECCIÓN:
-        evita entrar manualmente a /checkout
-        cuando no existen productos.
-    */
-    if (carrito.length === 0) {
-
-        return (
-            <main className="container my-5">
-
-                <div className="alert alert-warning">
-
-                    <h4 className="alert-heading">
-                        Tu carrito está vacío
-                    </h4>
-
-                    <p>
-                        Debes agregar al menos un producto antes de continuar al checkout.
-                    </p>
-
-                    <hr />
-
-                    <Link
-                        to={conectado ? RUTA_CATALOGO_CONECTADO : '/productos'}
-                        className="btn btn-danger"
-                    >
-                        Ver productos
-                    </Link>
-                    {conectado && <Link to={RUTA_CARRITO_CONECTADO} className="btn btn-outline-secondary ms-2">
-                        Revisar carrito
-                    </Link>}
-
+    return <main className="tienda-contenedor tienda-pagina">
+        <Link className="tienda-regreso" to={rutaCarrito}><i className="bi bi-arrow-left" aria-hidden="true" /> Volver al carrito</Link>
+        <header className="tienda-encabezado"><div><h1>{conectado ? 'Finalizar compra' : 'Checkout'}</h1>
+            <p className="text-body-secondary mb-0">Completa la entrega y revisa tu pedido.</p></div></header>
+        <form className="compra-distribucion" onSubmit={continuar}>
+            <section className="tienda-panel checkout-formulario">
+                <h2><i className="bi bi-truck" aria-hidden="true" /> Datos de entrega</h2>
+                {sesion && <p className="text-body-secondary">Puedes ajustar los datos de tu perfil para este pedido.</p>}
+                {error && <p className="alert alert-danger" role="alert">{error}</p>}
+                <div className="row g-3">
+                    {campos.map(([campo, etiqueta, tipo, maximo, auto]) => <div key={campo} className={campo === 'direccion' ? 'col-12' : 'col-md-6'}>
+                        <label htmlFor={campo} className="form-label">{etiqueta}</label>
+                        <input className="form-control" id={campo} name={campo} type={tipo} autoComplete={auto}
+                            maxLength={conectado ? maximo : undefined} value={datosCliente[campo]} required
+                            onChange={(evento) => setDatosCliente({ ...datosCliente, [campo]: evento.target.value })} />
+                    </div>)}
+                    <div className="col-12">
+                        <label htmlFor="tipoEntrega" className="form-label">Método de entrega</label>
+                        <select id="tipoEntrega" className="form-select" value={tipoEntrega} onChange={(evento) => setTipoEntrega(evento.target.value)} required>
+                            <option value="">Selecciona una opción</option>
+                            <option value="Envío estándar">Envío estándar - 2 a 5 días hábiles</option>
+                            <option value="Envío express">Envío express - 24 a 48 horas</option>
+                        </select>
+                    </div>
                 </div>
-
-            </main>
-        );
-    }
-
-
-    return (
-        <main className="container my-5">
-
-            <h1 className="mb-4">
-                {conectado ? 'Checkout conectado' : 'Checkout'}
-            </h1>
-
-            {conectado && <p>Spring Boot guardará los datos de entrega junto con tu orden.</p>}
-
-
-            {errorEntrega && <p className="alert alert-danger" role="alert">{errorEntrega}</p>}
-            <form onSubmit={continuarPago}>
-
-                <div className="row g-4">
-
-                    <section className="col-lg-8">
-
-                        <div className="card shadow-sm">
-
-                            <div className="card-body">
-
-                                <h4 className="mb-4">
-                                    Datos de entrega
-                                </h4>
-
-
-                                {sesion && (
-
-                                    <div className="alert alert-info">
-
-                                        <i className="bi bi-person-check me-2"></i>
-
-                                        Los datos fueron cargados automáticamente desde tu perfil.
-
-                                    </div>
-
-                                )}
-
-
-                                <div className="row g-3">
-
-                                    <div className="col-md-6">
-
-                                        <label
-                                            htmlFor="nombre"
-                                            className="form-label"
-                                        >
-                                            Nombre completo
-                                        </label>
-
-                                        <input
-                                            id="nombre"
-                                            name="nombre"
-                                            type="text"
-                                            className="form-control"
-                                            value={datosCliente.nombre}
-                                            maxLength={conectado ? 150 : undefined}
-                                            onChange={manejarCambio}
-                                            required
-                                        />
-
-                                    </div>
-
-
-                                    <div className="col-md-6">
-
-                                        <label
-                                            htmlFor="correo"
-                                            className="form-label"
-                                        >
-                                            Correo electrónico
-                                        </label>
-
-                                        <input
-                                            id="correo"
-                                            name="correo"
-                                            type="email"
-                                            className="form-control"
-                                            value={datosCliente.correo}
-                                            maxLength={conectado ? 254 : undefined}
-                                            onChange={manejarCambio}
-                                            required
-                                        />
-
-                                    </div>
-
-
-                                    <div className="col-md-6">
-
-                                        <label
-                                            htmlFor="telefono"
-                                            className="form-label"
-                                        >
-                                            Teléfono
-                                        </label>
-
-                                        <input
-                                            id="telefono"
-                                            name="telefono"
-                                            type="text"
-                                            className="form-control"
-                                            value={datosCliente.telefono}
-                                            maxLength={conectado ? 30 : undefined}
-                                            onChange={manejarCambio}
-                                            required
-                                        />
-
-                                    </div>
-
-
-                                    <div className="col-md-6">
-
-                                        <label
-                                            htmlFor="comuna"
-                                            className="form-label"
-                                        >
-                                            Comuna
-                                        </label>
-
-                                        <input
-                                            id="comuna"
-                                            name="comuna"
-                                            type="text"
-                                            className="form-control"
-                                            value={datosCliente.comuna}
-                                            maxLength={conectado ? 100 : undefined}
-                                            onChange={manejarCambio}
-                                            required
-                                        />
-
-                                    </div>
-
-
-                                    <div className="col-12">
-
-                                        <label
-                                            htmlFor="direccion"
-                                            className="form-label"
-                                        >
-                                            Dirección de entrega
-                                        </label>
-
-                                        <input
-                                            id="direccion"
-                                            name="direccion"
-                                            type="text"
-                                            className="form-control"
-                                            value={datosCliente.direccion}
-                                            maxLength={conectado ? 300 : undefined}
-                                            onChange={manejarCambio}
-                                            required
-                                        />
-
-                                    </div>
-
-
-                                    <div className="col-12">
-
-                                        <hr className="my-3" />
-
-                                        <h5>
-                                            Opción de entrega
-                                        </h5>
-
-                                        <p className="text-muted">
-                                            Selecciona cómo deseas recibir tu compra.
-                                        </p>
-
-                                    </div>
-
-
-                                    <div className="col-12">
-
-                                        <label
-                                            htmlFor="tipoEntrega"
-                                            className="form-label"
-                                        >
-                                            Método de entrega
-                                        </label>
-
-                                        <select
-                                            id="tipoEntrega"
-                                            className="form-select"
-                                            value={tipoEntrega}
-                                            onChange={(evento) =>
-                                                setTipoEntrega(
-                                                    evento.target.value
-                                                )
-                                            }
-                                            required
-                                        >
-
-                                            <option value="">
-                                                Selecciona una opción
-                                            </option>
-
-                                            <option value="Envío estándar">
-                                                Envío estándar - 2 a 5 días hábiles
-                                            </option>
-
-                                            <option value="Envío express">
-                                                Envío express - 24 a 48 horas
-                                            </option>
-
-                                        </select>
-
-                                    </div>
-
-                                </div>
-
-                            </div>
-
-                        </div>
-
-                    </section>
-
-
-                    <aside className="col-lg-4">
-
-                        <div className="card shadow-sm">
-
-                            <div className="card-body">
-
-                                <h4>
-                                    Resumen de compra
-                                </h4>
-
-                                <hr />
-
-
-                                <p>
-                                    Productos diferentes: {carrito.length}
-                                </p>
-
-                                <p>
-                                    Cantidad total: {cantidadTotal}
-                                </p>
-
-
-                                {tipoEntrega && (
-
-                                    <p>
-                                        Entrega:{' '}
-                                        <strong>
-                                            {tipoEntrega}
-                                        </strong>
-                                    </p>
-
-                                )}
-
-
-                                <hr />
-
-
-                                <h4 className="text-danger">
-                                    {conectado ? 'Total estimado: ' : 'Total: '}{formatoPrecio.format(total)}
-                                </h4>
-
-
-                                <button
-                                    type="submit"
-                                    className="btn btn-danger w-100 mt-3"
-                                    disabled={conectado && !revision.puedeContinuar}
-                                >
-                                    {conectado ? 'Revisar compra' : 'Continuar al pago'}
-                                </button>
-
-                            </div>
-
-                        </div>
-
-                    </aside>
-
-                </div>
-
-            </form>
-
-        </main>
-    );
+            </section>
+            <ResumenCompra lineas={carrito} total={total} estimado={conectado} mostrarDetalle>
+                <p className="nota-compra"><i className="bi bi-info-circle" aria-hidden="true" /> Compra y pago simulados.</p>
+                <button type="submit" className="btn btn-danger w-100" disabled={conectado && !revision.puedeContinuar}>
+                    {conectado ? 'Revisar compra' : 'Continuar al pago'}
+                </button>
+            </ResumenCompra>
+        </form>
+    </main>;
 }

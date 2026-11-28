@@ -6,7 +6,7 @@ const describirAviso = {
     'precio-modificado': ({ precioAnterior, precioActual }) => `Precio ${formato.format(precioAnterior)} → ${formato.format(precioActual)}`,
     'stock-modificado': ({ stockAnterior, stockActual }) => `Stock ${stockAnterior} → ${stockActual}`,
     'stock-insuficiente': ({ cantidadSolicitada, cantidadDisponible }) => `Solicitadas ${cantidadSolicitada}, disponibles ${cantidadDisponible}`,
-    'producto-inexistente': () => 'El producto no está en el catálogo conectado',
+    'producto-inexistente': () => 'El producto no está en el catálogo',
     'cantidad-invalida': () => 'Cantidad inválida'
 };
 
@@ -24,7 +24,7 @@ export default function ImportarCarritoLocal({ carritoLocal, productos, aplicar,
             {propuesta && (
                 <div className="mt-3">
                     <h2 className="h5">Propuesta de importación</h2>
-                    <p>Se conserva el {origen}. Si un producto ya está en el carrito conectado, se toma la mayor cantidad.</p>
+                    <p>Se conserva el {origen}. Si un producto ya está en tu carrito, se toma la mayor cantidad.</p>
                     {propuesta.carritoPropuesto.length ? (
                         <ul>{propuesta.carritoPropuesto.map((linea) => (
                             <li key={linea.id}>{linea.nombre} × {linea.cantidad} · {formato.format(linea.precio)} por unidad</li>

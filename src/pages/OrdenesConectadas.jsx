@@ -1,53 +1,62 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { RUTA_ORDENES_CONECTADAS } from '../context/catalogo.js';
+import { RUTA_ADMIN_CONECTADA, RUTA_CATALOGO_CONECTADO, RUTA_ORDENES_CONECTADAS } from '../context/catalogo.js';
 import { useSesionConectada } from '../context/sesionConectada.js';
 import { listarOrdenesApi, obtenerOrdenApi } from '../services/ordenesApi.js';
 
-const pesos = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' });
-const montosHistoricos = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 16 });
+const pesos = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 16 });
 const descuentos = new Intl.NumberFormat('es-CL', { maximumFractionDigits: 16 });
 const fechaCompra = new Intl.DateTimeFormat('es-CL', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Santiago' });
 
-function ComprobanteCompra({ orden }) {
-    const fecha = orden.fechaCreacion ? new Date(orden.fechaCreacion) : null;
-    return (
-        <section className="card p-3 mt-3">
-            <h2 className="h5">Orden {orden.id}</h2>
-            <p>Fecha de compra: {Number.isFinite(fecha?.getTime())
-                ? <time dateTime={orden.fechaCreacion}>{fechaCompra.format(fecha)}</time>
-                : 'No disponible'}</p>
-            {orden.estado && <p>Estado de la orden: {orden.estado}</p>}
-            <div className="table-responsive">
-                <table className="table align-middle">
-                    <thead>
-                        <tr>
-                            <th scope="col">Producto</th>
-                            <th scope="col">Cantidad</th>
-                            <th scope="col">Precio original</th>
-                            <th scope="col">Descuento</th>
-                            <th scope="col">Precio unitario aplicado</th>
-                            <th scope="col">Subtotal</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {orden.productos.map((linea) => (
-                            <tr key={linea.productoId}>
-                                <th scope="row">{linea.nombre}</th>
-                                <td>{linea.cantidad}</td>
-                                <td>{montosHistoricos.format(linea.precioOriginal)}</td>
-                                <td>{descuentos.format(linea.descuento)} %</td>
-                                <td>{montosHistoricos.format(linea.precioUnitario)}</td>
-                                <td>{montosHistoricos.format(linea.subtotal)}</td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+function FechaOrden({ fecha }) {
+    const instante = fecha ? new Date(fecha) : null;
+    return Number.isFinite(instante?.getTime())
+        ? <time dateTime={fecha}>{fechaCompra.format(instante)}</time> : 'Fecha no disponible';
+}
+
+function EstadoOrden({ estado }) {
+    if (!estado) return null;
+    const texto = estado === 'ENVIADO' ? 'Enviado' : estado === 'PROCESANDO' ? 'Procesando' : estado;
+    return <span className={'estado-pedido' + (estado === 'ENVIADO' ? ' enviado' : '')}>{texto}</span>;
+}
+
+function TablaOrden({ productos }) {
+    return <div className="tabla-pedido table-responsive" tabIndex={0} aria-label="Productos del pedido">
+        <table className="table align-middle">
+            <thead><tr>
+                <th scope="col">Producto</th><th scope="col">Cantidad</th><th scope="col">Precio original</th>
+                <th scope="col">Descuento</th><th scope="col">Precio unitario</th><th scope="col">Subtotal</th>
+            </tr></thead>
+            <tbody>{productos.map((linea) => <tr key={linea.productoId}>
+                <th scope="row">{linea.nombre}</th><td>{linea.cantidad}</td><td>{pesos.format(linea.precioOriginal)}</td>
+                <td>{descuentos.format(linea.descuento)} %</td><td>{pesos.format(linea.precioUnitario)}</td><td>{pesos.format(linea.subtotal)}</td>
+            </tr>)}</tbody>
+        </table>
+    </div>;
+}
+
+function ResumenOrden({ orden, comprobante, vendedor, rutaDetalle }) {
+    return <section className="tienda-panel resumen-orden">
+        <div className="orden-cabecera">
+            <div>
+                <p className="tienda-etiqueta"><span /> {comprobante ? 'Comprobante informativo' : 'Pedido'}</p>
+                <h2 className="referencia-orden">Orden {orden.id}</h2>
+                <FechaOrden fecha={orden.fechaCreacion} />
             </div>
-            <p className="text-end fw-bold">Total confirmado: {montosHistoricos.format(orden.total)}</p>
-            <p className="text-muted mb-0">Comprobante informativo de AutoCarePro, sin validez tributaria.</p>
-        </section>
-    );
+            <EstadoOrden estado={orden.estado} />
+        </div>
+        <TablaOrden productos={orden.productos} />
+        <p className="orden-total">{'Total confirmado: ' + pesos.format(orden.total)}</p>
+
+        {!comprobante && !vendedor && orden.entrega && <section className="datos-entrega" aria-label="Datos de entrega">
+            <h3><i className="bi bi-truck" aria-hidden="true" /> Datos de entrega</h3>
+            <p>{orden.entrega.tipo} · {orden.entrega.nombre}</p>
+            <p>{orden.entrega.direccion}, {orden.entrega.comuna}</p>
+            <p>{orden.entrega.correo} · {orden.entrega.telefono}</p>
+        </section>}
+        {comprobante ? <p className="nota-compra">Comprobante informativo de AutoCarePro, sin validez tributaria.</p> :
+            <Link className="btn btn-danger" to={rutaDetalle + '/boleta'}>Ver comprobante</Link>}
+    </section>;
 }
 
 export default function OrdenesConectadas({ comprobante = false }) {
@@ -72,50 +81,35 @@ export default function OrdenesConectadas({ comprobante = false }) {
     }, [id, usuarioId, solicitar]);
 
     const actual = consulta?.id === id && consulta?.usuarioId === usuarioId ? consulta : null;
-    const tituloOrdenes = usuario?.rol === 'CLIENTE' ? 'Mis órdenes conectadas' : 'Órdenes conectadas';
-    const rutaDetalle = `${RUTA_ORDENES_CONECTADAS}/${id}`;
-    if (comprobante) {
-        return (
-            <main className="container my-5">
-                <h1>Comprobante de compra</h1>
-                <Link to={rutaDetalle}>Volver al detalle de la orden</Link>
-                {!actual && <p role="status">Consultando orden…</p>}
-                {actual?.mensaje && <p className="alert alert-warning" role="alert">{actual.mensaje}</p>}
-                {actual?.datos && <ComprobanteCompra orden={actual.datos} />}
-            </main>
-        );
-    }
+    const rutaDetalle = RUTA_ORDENES_CONECTADAS + '/' + id;
+    const listaOrdenes = usuario?.rol === 'ADMIN' ? RUTA_ADMIN_CONECTADA + '/ordenes' : RUTA_ORDENES_CONECTADAS;
+    const titulo = comprobante ? 'Comprobante de compra' : id ? 'Detalle de la orden'
+        : usuario?.rol === 'CLIENTE' ? 'Mis órdenes' : 'Órdenes';
 
-    return (
-        <main className="container my-5">
-            <h1>{id ? 'Detalle de orden conectada' : tituloOrdenes}</h1>
-            {id && <Link to={RUTA_ORDENES_CONECTADAS}>Volver a las órdenes</Link>}
-            {!actual && <p role="status">Consultando órdenes…</p>}
-            {actual?.mensaje && <p className="alert alert-warning" role="alert">{actual.mensaje}</p>}
-            {id && actual?.datos && (
-                <section className="card p-3 mt-3">
-                    <h2 className="h5">Orden {actual.datos.id}</h2>
-                    <p>{actual.datos.estado} · {pesos.format(actual.datos.total)}</p>
-                    <ul>{actual.datos.productos.map((linea) => (
-                        <li key={linea.productoId}>{linea.nombre} × {linea.cantidad} · {pesos.format(linea.subtotal)}</li>
-                    ))}</ul>
-                    {usuario?.rol !== 'VENDEDOR' && actual.datos.entrega && <section aria-label="Datos de entrega" className="mb-3">
-                        <h3 className="h6">Datos de entrega</h3>
-                        <p className="mb-1">{actual.datos.entrega.tipo} · {actual.datos.entrega.nombre}</p>
-                        <p className="mb-1">{actual.datos.entrega.direccion}, {actual.datos.entrega.comuna}</p>
-                        <p className="mb-0">{actual.datos.entrega.correo} · {actual.datos.entrega.telefono}</p>
-                    </section>}
-                    <div><Link className="btn btn-outline-primary" to={`${rutaDetalle}/boleta`}>Ver comprobante</Link></div>
-                </section>
-            )}
-            {!id && Array.isArray(actual?.datos) && (actual.datos.length ? (
-                <ul className="list-group mt-3">{actual.datos.map((orden) => (
-                    <li className="list-group-item" key={orden.id}>
-                        <Link to={`${RUTA_ORDENES_CONECTADAS}/${orden.id}`}>Orden {orden.id}</Link>{' '}
-                        · {orden.estado} · {pesos.format(orden.total)}
-                    </li>
-                ))}</ul>
-            ) : <p>Todavía no hay órdenes.</p>)}
-        </main>
-    );
+    return <main className="tienda-contenedor tienda-pagina ordenes-pagina">
+        <Link className="tienda-regreso" to={comprobante ? rutaDetalle : id ? listaOrdenes : RUTA_CATALOGO_CONECTADO}>
+            <i className="bi bi-arrow-left" aria-hidden="true" /> {comprobante ? 'Volver al detalle de la orden' : id ? 'Volver a las órdenes' : 'Volver al catálogo'}
+        </Link>
+        <header className="tienda-encabezado"><div><h1>{titulo}</h1>
+            {!id && <p className="text-body-secondary mb-0">Consulta el estado y el comprobante de cada pedido.</p>}</div></header>
+        {!actual && <p role="status">Consultando {id ? 'orden' : 'órdenes'}…</p>}
+        {actual?.mensaje && <p className="alert alert-warning" role="alert">{actual.mensaje}</p>}
+        {id && actual?.datos && <ResumenOrden orden={actual.datos} comprobante={comprobante}
+            vendedor={usuario?.rol === 'VENDEDOR'} rutaDetalle={rutaDetalle} />}
+        {!id && Array.isArray(actual?.datos) && (actual.datos.length ? <div className="orden-lista">
+            {actual.datos.map((orden) => {
+                const ruta = RUTA_ORDENES_CONECTADAS + '/' + orden.id;
+                return <article className="tienda-panel orden-tarjeta" key={orden.id}>
+                    <div><Link className="orden-referencia" to={ruta} title={orden.id} aria-label={'Orden ' + orden.id}>
+                        Orden #{orden.id.slice(-8).toUpperCase()}</Link><p className="mb-0"><FechaOrden fecha={orden.fechaCreacion} /></p></div>
+                    <EstadoOrden estado={orden.estado} />
+                    <strong>{pesos.format(orden.total)}</strong>
+                    <div className="d-flex gap-2 flex-wrap">
+                        <Link className="btn btn-outline-dark btn-sm" to={ruta}>Ver detalle</Link>
+                        <Link className="btn btn-outline-danger btn-sm" to={ruta + '/boleta'}>Ver comprobante</Link>
+                    </div>
+                </article>;
+            })}
+        </div> : <p className="tienda-vacio">Todavía no hay órdenes.</p>)}
+    </main>;
 }

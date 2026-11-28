@@ -1,13 +1,14 @@
 import { useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useBaseAdmin } from '../context/catalogo.js';
 import { useSesionConectada } from '../context/sesionConectada.js';
 import { useConsultaCatalogoAdmin } from '../hooks/useConsultaCatalogoAdmin.js';
 import { adminCatalogoApi, cargarProductoAdmin, listarCategoriasAdmin, mensajeErrorAdmin } from '../services/adminCatalogoApi.js';
 import { esRegistroTemporal } from '../services/adminCatalogoConfiguracion.js';
 import { obtenerCategorias } from '../services/categoriasService.js';
-import { actualizarProducto, crearProducto, obtenerProductos } from '../services/productosService.js';
+import { actualizarProducto, crearProducto, mostrarImagenProductoAlternativa, obtenerImagenProducto, obtenerProductos } from '../services/productosService.js';
 import { AvisoEscriturasAdmin, ErroresFormularioAdmin, EstadoCatalogoAdmin } from './EstadoCatalogoAdmin.jsx';
+import { EncabezadoAdmin } from './AdminInterfaz.jsx';
 
 const ENTERO_MAXIMO = 2147483647;
 const campos = [
@@ -63,9 +64,9 @@ export default function FormularioAdminProducto({ conectado = false, id, cliente
     const categorias = conectado ? categoriasApi.datos : obtenerCategorias();
     const producto = conectado ? detalleApi.datos : id ? obtenerProductos().find((item) => item.id === Number(id)) : undefined;
 
-    return <main className="container my-5">
-        <h1 className="mb-1">{id ? 'Editar producto' : 'Nuevo producto'}</h1>
-        <Link className="btn btn-outline-secondary my-3" to={`${baseAdmin}/productos`}>Volver a productos</Link>
+    return <main className="tienda-contenedor tienda-pagina admin-pagina">
+        <EncabezadoAdmin titulo={id ? 'Editar producto' : 'Nuevo producto'}
+            regreso={baseAdmin + '/productos'} textoRegreso="Volver a productos" />
         {conectado && <AvisoEscriturasAdmin habilitada={cliente.habilitada} soloTemporales={cliente.soloTemporales} />}
         <EstadoCatalogoAdmin consulta={categoriasApi} />
         <EstadoCatalogoAdmin consulta={detalleApi} />
@@ -90,6 +91,9 @@ function CamposProducto({ producto, categorias, conectado, cliente, baseAdmin })
     const opciones = conectado && puedeGuardar && cliente.soloTemporales
         ? categorias.filter((item) => esRegistroTemporal('categorias', item)) : categorias;
     const campoCategoria = conectado ? 'categoriaId' : 'categoria';
+    const rutaImagen = formulario.imagen?.trim() ?? '';
+    const imagenPrevia = /^(\/(?!\/)|https?:\/\/)/i.test(rutaImagen)
+        ? obtenerImagenProducto({ ...formulario, imagen: rutaImagen }) : null;
 
     function cambiar(evento) {
         const { name, value } = evento.target;
@@ -138,7 +142,7 @@ function CamposProducto({ producto, categorias, conectado, cliente, baseAdmin })
         }
     }
 
-    return <div className="card shadow-sm"><div className="card-body">
+    return <section className="tienda-panel">
         {conectado && cliente.soloTemporales && cliente.habilitada && producto && !puedeGuardar &&
             <p>Este producto está disponible para consulta. La edición requiere un ID temporal autorizado.</p>}
         {conectado && puedeGuardar && !opciones.length &&
@@ -155,6 +159,11 @@ function CamposProducto({ producto, categorias, conectado, cliente, baseAdmin })
                             <input className="form-control" id={campo} name={campo} type={reglas.min === 0 ? 'number' : 'text'}
                                 {...reglas} value={formulario[campo]} onChange={cambiar} />}
                     </div>)}
+                    {imagenPrevia && <div className="col-md-6">
+                        <p className="form-label">Vista previa de la imagen</p>
+                        <img className="admin-imagen-previa" key={imagenPrevia} src={imagenPrevia} alt="Vista previa del producto"
+                            referrerPolicy="no-referrer" onError={(evento) => mostrarImagenProductoAlternativa(evento, rutaImagen)} />
+                    </div>}
                     <div className="col-md-6">
                         <label className="form-label" htmlFor={campoCategoria}>Categoría</label>
                         <select className="form-select" id={campoCategoria} name={campoCategoria} required
@@ -169,5 +178,5 @@ function CamposProducto({ producto, categorias, conectado, cliente, baseAdmin })
                 </button>
             </fieldset>
         </form>
-    </div></div>;
+    </section>;
 }

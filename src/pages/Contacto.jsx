@@ -166,7 +166,7 @@ export default function Contacto({ conectado = false }) {
                             </p>
 
 
-                            {conectado && <EstadoEscrituraConectada escritura={escritura} />}
+                            {conectado && <EstadoEscrituraConectada escritura={escritura} mensajeBloqueo="El envío de mensajes no está disponible por el momento." />}
                             {mensajeExito && (
 
                                 <div

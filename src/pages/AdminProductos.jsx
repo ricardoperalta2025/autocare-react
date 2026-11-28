@@ -4,8 +4,9 @@ import { useBaseAdmin } from '../context/catalogo.js';
 import { useSesionConectada } from '../context/sesionConectada.js';
 import { useConsultaCatalogoAdmin } from '../hooks/useConsultaCatalogoAdmin.js';
 import { adminCatalogoApi, listarProductosAdmin, mensajeErrorAdmin } from '../services/adminCatalogoApi.js';
-import { eliminarProducto, obtenerPrecioFinalProducto, obtenerProductos, productoTieneStockCritico } from '../services/productosService.js';
+import { eliminarProducto, mostrarImagenProductoAlternativa, obtenerImagenProducto, obtenerPrecioFinalProducto, obtenerProductos, productoTieneStockCritico } from '../services/productosService.js';
 import { AvisoEscriturasAdmin, EstadoCatalogoAdmin } from '../components/EstadoCatalogoAdmin.jsx';
+import { EncabezadoAdmin, EtiquetaAdmin, PaginacionAdmin, usePaginaAdmin } from '../components/AdminInterfaz.jsx';
 
 const pesos = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
 
@@ -30,6 +31,7 @@ export default function AdminProductos({ conectado = false, cliente = adminCatal
     const resultados = (productos ?? []).filter((producto) =>
         (!categoriaActiva || tipoCategoria(producto) === categoriaActiva) &&
         [producto.codigo, producto.nombre, producto.descripcion].some((campo) => campo?.toLowerCase().includes(termino)));
+    const paginacion = usePaginaAdmin(resultados);
 
     async function confirmarEliminacion(producto) {
         if (ocupado.current || !puedeCrear || (conectado && !cliente.puedeEditar('productos', producto))) return;
@@ -56,61 +58,58 @@ export default function AdminProductos({ conectado = false, cliente = adminCatal
         }
     }
 
-    return <main className="container my-5">
-        <Link to={baseAdmin} className="btn btn-outline-secondary mb-3">← Volver al panel</Link>
-        <div className="d-flex justify-content-between align-items-center mb-4">
-            <div>
-                <h1 className="mb-1">Administración de Productos</h1>
-                <p className="text-muted mb-0">Productos registrados: {productos?.length ?? '—'}</p>
-            </div>
+    return <main className="tienda-contenedor tienda-pagina admin-pagina">
+        <EncabezadoAdmin titulo="Administración de Productos" descripcion={`Productos registrados: ${productos?.length ?? '—'}`}>
             {puedeCrear ? <Link to={`${baseAdmin}/productos/nuevo`} className="btn btn-danger">
                 <i className="bi bi-plus-circle me-2"></i>Nuevo producto
             </Link> : <button type="button" className="btn btn-danger" disabled>Nuevo producto</button>}
-        </div>
+        </EncabezadoAdmin>
         {conectado && <AvisoEscriturasAdmin habilitada={cliente.habilitada} soloTemporales={cliente.soloTemporales} />}
         {aviso && <p role="status" className="alert alert-success">{aviso}</p>}
         {error && <p role="alert" className="alert alert-danger">{error}</p>}
         <EstadoCatalogoAdmin consulta={consulta} />
-        {productos && <div className="card shadow-sm"><div className="card-body">
+        {productos && <section className="tienda-panel">
             <div className="row g-3 mb-3">
                 <div className="col-md-6">
                     <label htmlFor="buscar-producto-admin" className="form-label">Buscar producto</label>
                     <input id="buscar-producto-admin" className="form-control" value={busqueda}
-                        onChange={(evento) => setBusqueda(evento.target.value)} />
+                        onChange={(evento) => { setBusqueda(evento.target.value); paginacion.setPagina(1); }} />
                 </div>
                 <div className="col-md-6">
                     <label htmlFor="filtro-categoria-admin" className="form-label">Filtrar por categoría</label>
                     <select id="filtro-categoria-admin" className="form-select" value={categoriaActiva}
-                        onChange={(evento) => setCategoria(evento.target.value)}>
+                        onChange={(evento) => { setCategoria(evento.target.value); paginacion.setPagina(1); }}>
                         <option value="">Todas las categorías</option>
                         {[...categorias].map(([id, nombre]) => <option key={id} value={id}>{nombre}</option>)}
                     </select>
                 </div>
             </div>
-            {resultados.length ? <div className="table-responsive"><table className="table align-middle">
-                <thead><tr>
+            {resultados.length ? <div className="table-responsive"><table className="table admin-tabla admin-tabla-productos align-middle" role="table">
+                <thead role="rowgroup"><tr role="row">
                     <th>Código</th><th>Producto</th><th>Categoría</th><th className="text-end">Precio</th>
                     <th className="text-center">Stock</th><th className="text-center">Estado</th><th className="text-center">Acciones</th>
                 </tr></thead>
-                <tbody>{resultados.map((producto) => {
+                <tbody role="rowgroup">{paginacion.filas.map((producto) => {
                     const puedeEditar = puedeCrear && (!conectado || cliente.puedeEditar('productos', producto));
                     const agotado = producto.stock <= 0;
                     const critico = productoTieneStockCritico(producto);
-                    return <tr key={producto.id}>
-                        <td>{producto.codigo}</td>
-                        <td><strong>{producto.nombre}</strong><div className="small text-muted">{producto.descripcion}</div></td>
-                        <td>{producto.categoria}</td>
-                        <td className="text-end">{pesos.format(producto.precio)}
+                    return <tr role="row" key={producto.id}>
+                        <td role="cell" data-etiqueta="Código">{producto.codigo}</td>
+                        <td role="cell"><div className="admin-producto">
+                            <img className="admin-miniatura" src={obtenerImagenProducto(producto)} alt="" loading="lazy"
+                                onError={(evento) => mostrarImagenProductoAlternativa(evento, producto.imagen)} />
+                            <div><strong>{producto.nombre}</strong><div className="small text-muted">{producto.descripcion}</div></div>
+                        </div></td>
+                        <td role="cell" data-etiqueta="Categoría">{producto.categoria}</td>
+                        <td role="cell" data-etiqueta="Precio" className="text-end">{pesos.format(producto.precio)}
                             {producto.descuento > 0 && <div className="small text-muted">
                                 {producto.descuento}% · {pesos.format(conectado ? producto.precioFinal : obtenerPrecioFinalProducto(producto))}
                             </div>}
                         </td>
-                        <td className="text-center">{producto.stock}</td>
-                        <td className="text-center"><span className={`badge text-bg-${agotado ? 'danger' : critico ? 'warning' : 'success'}`}>
-                            {agotado ? 'Agotado' : critico ? 'Stock crítico' : 'Disponible'}
-                        </span></td>
-                        <td className="text-center">
-                            <div className="d-flex justify-content-center gap-2">
+                        <td role="cell" data-etiqueta="Stock" className="text-center">{producto.stock}</td>
+                        <td role="cell" data-etiqueta="Estado" className="text-center"><EtiquetaAdmin estado={agotado ? 'Agotado' : critico ? 'Stock crítico' : 'Disponible'} /></td>
+                        <td role="cell" className="text-center">
+                            <div className="admin-acciones justify-content-center">
                                 {puedeEditar ? <Link to={`${baseAdmin}/productos/editar/${producto.id}`}
                                     className="btn btn-outline-primary btn-sm">Editar</Link> :
                                     <Link to={`${baseAdmin}/productos/editar/${producto.id}`}
@@ -121,7 +120,8 @@ export default function AdminProductos({ conectado = false, cliente = adminCatal
                         </td>
                     </tr>;
                 })}</tbody>
-            </table></div> : <p>No hay productos que coincidan con la consulta.</p>}
-        </div></div>}
+            </table></div> : <p className="mb-0">No hay productos que coincidan con la consulta.</p>}
+            <PaginacionAdmin datos={paginacion} seccion="productos" />
+        </section>}
     </main>;
 }

@@ -65,7 +65,7 @@ describe('Navegación del vendedor conectado', () => {
             ['Productos', RUTA_CATALOGO_CONECTADO],
             ['Órdenes', RUTA_ORDENES_CONECTADAS]
         ]);
-        expect(screen.queryByRole('link', { name: 'Volver al catálogo local' })).toBeNull();
+        expect(screen.queryByRole('link', { name: 'Volver al simulador' })).toBeNull();
         expect(screen.queryByRole('link', { name: 'Facebook' })).toBeNull();
         expect(peticiones).toHaveBeenCalledWith('/api/v1/auth/me', jasmine.objectContaining({
             method: 'GET', headers: jasmine.objectContaining({ Authorization: `Bearer ${token}` })
@@ -80,7 +80,7 @@ describe('Navegación del vendedor conectado', () => {
         expect(window.location.pathname).toBe(`${RUTA_CATALOGO_CONECTADO}/${producto.id}`);
         expect(screen.queryByRole('button', { name: /agregar al carrito/i })).toBeNull();
         fireEvent.click(navbar().getByRole('link', { name: 'AutoCarePro' }));
-        expect(await screen.findByRole('heading', { name: 'Catálogo de Productos' })).toBeTruthy();
+        expect(await screen.findByRole('heading', { name: 'Catálogo de productos' })).toBeTruthy();
         expect(window.location.pathname).toBe(RUTA_CATALOGO_CONECTADO);
     });
 
@@ -88,7 +88,7 @@ describe('Navegación del vendedor conectado', () => {
         const peticiones = montar(RUTA_CATALOGO_CONECTADO);
         await navbar().findByRole('button', { name: 'Cerrar sesión' });
         fireEvent.click(navbar().getByRole('link', { name: 'Órdenes' }));
-        expect(await screen.findByRole('heading', { name: 'Órdenes conectadas' })).toBeTruthy();
+        expect(await screen.findByRole('heading', { name: 'Órdenes' })).toBeTruthy();
         fireEvent.click(await screen.findByRole('link', { name: `Orden ${orden.id}` }));
         expect(await screen.findByRole('heading', { name: `Orden ${orden.id}` })).toBeTruthy();
         expect(peticiones).toHaveBeenCalledWith(`/api/v1/ordenes/${orden.id}`, jasmine.objectContaining({
@@ -111,7 +111,7 @@ describe('Navegación del vendedor conectado', () => {
             const peticiones = montar(ruta);
             const alerta = await screen.findByRole('alert');
             expect(alerta.textContent).toContain('Tu rol no tiene permiso');
-            expect(within(alerta).getByRole('link', { name: 'Volver al catálogo conectado' }).getAttribute('href'))
+            expect(within(alerta).getByRole('link', { name: 'Volver al catálogo' }).getAttribute('href'))
                 .toBe(RUTA_CATALOGO_CONECTADO);
             expect(peticiones.calls.allArgs().every(([, opciones]) => opciones.method === 'GET')).toBeTrue();
         });
@@ -121,13 +121,13 @@ describe('Navegación del vendedor conectado', () => {
         it(`conserva la navegación de ${rol} y su acceso al perfil conectado`, async () => {
             montar(RUTA_CATALOGO_CONECTADO, rol);
             await navbar().findByRole('button', { name: 'Cerrar sesión' });
-            for (const enlace of ['Inicio', 'Categorías', 'Ofertas', 'Nosotros', 'Blog', 'Contacto', 'Carrito conectado']) {
+            for (const enlace of ['Inicio', 'Categorías', 'Ofertas', 'Nosotros', 'Blog', 'Contacto', 'Carrito']) {
                 expect(navbar().getByRole('link', { name: enlace })).toBeTruthy();
             }
             expect(Boolean(navbar().queryByRole('link', { name: 'Administración' }))).toBe(rol === 'ADMIN');
-            expect(screen.getByRole('link', { name: 'Volver al catálogo local' })).toBeTruthy();
+            expect(screen.getByRole('link', { name: 'Volver al simulador' })).toBeTruthy();
             fireEvent.click(navbar().getByRole('link', { name: usuario.nombre }));
-            expect(await screen.findByRole('heading', { name: 'Mi perfil conectado' })).toBeTruthy();
+            expect(await screen.findByRole('heading', { name: 'Mi perfil' })).toBeTruthy();
         });
     }
 
@@ -141,7 +141,7 @@ describe('Navegación del vendedor conectado', () => {
     it('mantiene la navegación y el catálogo de la tienda local simulada', async () => {
         localStorage.setItem('sesionAutoCare', JSON.stringify({ id: 1, nombre: 'Cliente local', rol: 'cliente' }));
         await act(async () => { montar('/productos'); });
-        expect(screen.getByRole('heading', { name: 'Catálogo de Productos' })).toBeTruthy();
+        expect(screen.getByRole('heading', { name: 'Catálogo de productos' })).toBeTruthy();
         for (const [nombre, ruta] of [['Inicio', '/'], ['Categorías', '/categorias'], ['Mis órdenes', '/ordenes'],
             ['Mis incidencias', '/incidencias'], ['Cliente local', '/perfil']]) {
             expect(navbar().getByRole('link', { name: nombre }).getAttribute('href')).toBe(ruta);
@@ -153,7 +153,7 @@ describe('Navegación del vendedor conectado', () => {
         localStorage.setItem('sesionAutoCare', sesionLocal);
         montar(RUTA_ORDENES_CONECTADAS);
         fireEvent.click(await navbar().findByRole('button', { name: 'Cerrar sesión' }));
-        expect(await screen.findByRole('heading', { name: 'Iniciar sesión conectada' })).toBeTruthy();
+        expect(await screen.findByRole('heading', { name: 'Iniciar sesión' })).toBeTruthy();
         expect(navbar().queryByText(usuario.nombre)).toBeNull();
         expect(window.location.pathname).toBe(RUTA_LOGIN_CONECTADO);
         expect(sessionStorage.getItem(CLAVE_SESION_CONECTADA)).toBeNull();
