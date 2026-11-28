@@ -1,94 +1,45 @@
 export default function Nosotros() {
-
     return (
-        <main className="container my-5">
+        <main className="tienda-contenedor tienda-pagina">
+            <header className="nosotros-portada">
+                <div className="nosotros-presentacion">
+                    <p className="tienda-etiqueta"><span /> AutoCarePro · Tienda demostrativa</p>
+                    <div className="tienda-encabezado"><h1>Sobre Nosotros</h1></div>
+                    <p className="lead">En AutoCarePro nos apasiona el mundo automotriz y creemos que mantener un vehículo en buenas condiciones no debería ser complicado.</p>
+                    <p className="mb-0">Esta tienda demostrativa reúne repuestos, accesorios y productos de mantención para conductores y amantes de los vehículos.</p>
+                </div>
+                <img src="/images/Tienda.png" alt="Imagen referencial de una tienda de repuestos AutoCarePro" />
+            </header>
 
-            <section className="text-center p-5 rounded shadow-sm border">
+            <div className="row g-3 my-3">
+                <div className="col-md-4">
+                    <section className="tienda-panel h-100">
+                        <i className="bi bi-bullseye nosotros-icono" aria-hidden="true" />
+                        <h2 className="h5 mt-2">Misión</h2>
+                        <p className="mb-0">Facilitar el acceso a los repuestos y accesorios necesarios para cuidar, mantener y mejorar tu auto.</p>
+                    </section>
+                </div>
+                <div className="col-md-4">
+                    <section className="tienda-panel h-100">
+                        <i className="bi bi-eye nosotros-icono" aria-hidden="true" />
+                        <h2 className="h5 mt-2">Visión</h2>
+                        <p className="mb-0">Ser una tienda fácil de consultar, donde cada persona pueda encontrar lo que necesita para mantener su vehículo en buenas condiciones.</p>
+                    </section>
+                </div>
+                <div className="col-md-4">
+                    <section className="tienda-panel h-100">
+                        <i className="bi bi-hand-thumbs-up nosotros-icono" aria-hidden="true" />
+                        <h2 className="h5 mt-2">Valores</h2>
+                        <p className="mb-0">Calidad en la selección de repuestos, precios claros y una experiencia de compra sencilla que genere confianza.</p>
+                    </section>
+                </div>
+            </div>
 
-                <h1 className="mb-4">
-                    Sobre Nosotros
-                </h1>
-
-                <p className="lead">
-                    En AutoCarePro nos apasiona el mundo automotriz y creemos
-                    que mantener un vehículo en buenas condiciones no debería
-                    ser complicado.
-                </p>
-
-                <p>
-                    Somos una tienda dedicada a la venta de repuestos,
-                    accesorios y productos para la mantención de automóviles,
-                    ofreciendo soluciones pensadas para conductores y amantes
-                    de los vehículos que buscan calidad, confianza y buenos
-                    precios.
-                </p>
-
-                <p>
-                    Nuestro objetivo es facilitar el acceso a los productos
-                    necesarios para el cuidado y mantenimiento de tu auto,
-                    desde repuestos y elementos de mantención hasta accesorios
-                    que ayudan a mejorar su funcionamiento y apariencia.
-                </p>
-
-                <p>
-                    En AutoCarePro trabajamos para entregar una experiencia de
-                    compra sencilla y confiable, ayudándote a encontrar lo que
-                    necesitas para que tu vehículo siga funcionando de la
-                    mejor manera.
-                </p>
-
-                <h5 className="mt-4">
-                    AutoCarePro — Tu auto, siempre en buenas manos.
-                </h5>
-
-
-                <img
-                    src="/images/Tienda.png"
-                    alt="Tienda AutoCarePro"
-                    className="img-fluid rounded mt-4"
-                    style={{
-                        maxHeight: '420px',
-                        objectFit: 'contain'
-                    }}
-                />
-
-
-                <hr className="my-5" />
-
-
-                <section>
-
-                    <h2 className="h4 mb-3">
-                        Equipo de Desarrollo
-                    </h2>
-
-                    <p className="mb-1">
-                        Proyecto desarrollado por:
-                    </p>
-
-                    <p className="mb-2">
-
-                        <strong>
-                            Nicolás Aballais
-                        </strong>
-
-                        {' y '}
-
-                        <strong>
-                            Ricardo Peralta
-                        </strong>
-
-                    </p>
-
-                    <p className="text-muted mb-0">
-                        Estudiantes Analistas Programadores,
-                        Duoc UC, Sede Puente Alto.
-                    </p>
-
-                </section>
-
+            <section className="tienda-panel">
+                <h2 className="h5">Equipo de desarrollo</h2>
+                <p className="mb-1"><strong>Nicolás Aballais y Ricardo Peralta</strong></p>
+                <p className="mb-0 text-body-secondary">Proyecto académico de Analista Programador, Duoc UC, sede Puente Alto.</p>
             </section>
-
         </main>
     );
 }

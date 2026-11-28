@@ -17,7 +17,9 @@ export default function Navbar() {
     const navegar = useNavigate();
     const sesionConectada = useSesionConectada();
     const { demostracion } = sesionConectada;
-    const conectado = demostracion || rutaConectada;
+    const rutaBlog = useMatch('/blog/*');
+    const rutaNosotros = useMatch('/nosotros');
+    const conectado = demostracion || rutaConectada || Boolean(sesionConectada.usuario && (rutaBlog || rutaNosotros));
     const sesion = conectado ? sesionConectada.usuario : obtenerSesion();
     const vendedor = conectado && sesion?.rol === 'VENDEDOR';
     const local = useCarrito();
@@ -36,7 +38,7 @@ export default function Navbar() {
             ? [[conectado ? RUTA_INCIDENCIAS_CONECTADAS : '/incidencias', 'Mis incidencias']] : []),
         ...(sesion?.rol === (conectado ? 'ADMIN' : 'admin')
             ? [[conectado ? RUTA_ADMIN_CONECTADA : '/admin', 'Administración']] : []),
-        ...(!vendedor && !demostracion ? [['/nosotros', 'Nosotros'], ['/blog', 'Blog']] : []),
+        ...(!vendedor ? [['/nosotros', 'Nosotros'], ['/blog', 'Blog']] : []),
         ...(!vendedor ? [[conectado ? RUTA_CONTACTO_CONECTADO : '/contacto', 'Contacto']] : [])
     ];
 
@@ -61,7 +63,7 @@ export default function Navbar() {
             </Link>
             <div id="tienda-menu" className={'tienda-menu' + (abierto ? ' abierto' : '')}>
                 <div className="tienda-enlaces">
-                    {enlaces.map(([ruta, nombre]) => <NavLink key={ruta} to={ruta} end className="tienda-enlace"
+                    {enlaces.map(([ruta, nombre]) => <NavLink key={ruta} to={ruta} end={ruta !== '/blog'} className="tienda-enlace"
                         onClick={() => setMenuAbierto(null)}>{nombre}</NavLink>)}
                 </div>
                 <div className="tienda-cuenta">

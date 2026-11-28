@@ -1,82 +1,38 @@
 import { Link } from 'react-router-dom';
-
-import {
-    obtenerBlogs
-} from '../services/blogsService';
-
+import { obtenerBlogs } from '../services/blogsService.js';
 
 export default function Blog() {
-
-    const blogs = obtenerBlogs();
-
-
     return (
-        <main className="container my-5">
-
-            <div className="mb-4">
-
-                <h1 className="mb-1">
-                    Blog AutoCarePro
-                </h1>
-
-                <p className="text-muted">
-                    Consejos, información y novedades para el cuidado de tu vehículo.
-                </p>
-
-            </div>
-
+        <main className="tienda-contenedor tienda-pagina">
+            <header className="tienda-encabezado">
+                <div>
+                    <h1>Blog AutoCarePro</h1>
+                    <p className="text-body-secondary mb-0">Consejos, información y novedades para el cuidado de tu vehículo.</p>
+                </div>
+            </header>
 
             <div className="row g-4">
-
-                {blogs.map((blog) => (
-
-                    <div
-                        className="col-md-6"
-                        key={blog.id}
-                    >
-
-                        <div className="card shadow-sm h-100">
-
-                            <img
-                                src={blog.imagen}
-                                className="card-img-top"
-                                alt={blog.titulo}
-                                style={{
-                                    height: '260px',
-                                    objectFit: 'contain',
-                                    padding: '20px'
-                                }}
-                            />
-
-
-                            <div className="card-body d-flex flex-column">
-
-                                <h4 className="card-title">
-                                    {blog.titulo}
-                                </h4>
-
-                                <p className="card-text text-muted">
-                                    {blog.resumen}
-                                </p>
-
-
-                                <Link
-                                    to={`/blog/${blog.id}`}
-                                    className="btn btn-outline-danger mt-auto"
-                                >
-                                    Leer artículo
+                {obtenerBlogs().map((blog) => {
+                    const ruta = '/blog/' + blog.id;
+                    const ajuste = blog.mostrarImagenCompleta ? ' object-fit-contain' : '';
+                    return (
+                        <div className="col-md-6" key={blog.id}>
+                            <article className="card blog-tarjeta h-100">
+                                <Link to={ruta} className="blog-foto" aria-label={'Abrir artículo: ' + blog.titulo}>
+                                    <img src={blog.imagen} alt={blog.imagenAlt} className={'blog-imagen' + ajuste} />
                                 </Link>
-
-                            </div>
-
+                                <div className="card-body d-flex flex-column align-items-start">
+                                    <h2 className="h4"><Link to={ruta}>{blog.titulo}</Link></h2>
+                                    <p className="text-body-secondary">{blog.resumen}</p>
+                                    <Link to={ruta} className="btn btn-outline-danger mt-auto">
+                                        Leer más <i className="bi bi-arrow-right ms-1" aria-hidden="true" />
+                                    </Link>
+                                </div>
+                            </article>
                         </div>
-
-                    </div>
-
-                ))}
-
+                    );
+                })}
             </div>
-
         </main>
     );
 }

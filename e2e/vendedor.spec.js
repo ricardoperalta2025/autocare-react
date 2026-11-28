@@ -24,10 +24,12 @@ test('VENDEDOR · consulta órdenes y productos sin acciones de compra ni datos 
 test('VENDEDOR · rechaza rutas ajenas al rol y vuelve al login al cerrar sesión', async ({ page }) => {
     await iniciarSesion(page, 'VENDEDOR');
     for (const ruta of [RUTAS.admin, RUTAS.admin + '/reportes', RUTAS.carrito + '/checkout',
-        RUTAS.catalogo + '/perfil', RUTAS.incidencias, RUTAS.catalogo + '/contacto']) {
+        RUTAS.catalogo + '/perfil', RUTAS.incidencias, RUTAS.catalogo + '/contacto', '/nosotros', '/blog', '/blog/1']) {
         await page.goto(ruta);
         await expect(page.getByRole('alert')).toContainText('Tu rol no tiene permiso');
     }
+    await expect(page.getByRole('link', { name: 'Nosotros' })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Blog', exact: true })).toHaveCount(0);
     await page.getByRole('button', { name: 'Cerrar sesión' }).click();
     await expect(page.getByRole('heading', { name: 'Iniciar sesión' })).toBeVisible();
     await page.goto(RUTAS.ordenes);

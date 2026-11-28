@@ -5,7 +5,9 @@ import { useSesionConectada } from '../context/sesionConectada.js';
 export default function Footer() {
     const { usuario, demostracion } = useSesionConectada();
     const rutaConectada = useMatch(RUTA_CATALOGO_CONECTADO + '/*');
-    const conectado = demostracion || Boolean(rutaConectada);
+    const rutaBlog = useMatch('/blog/*');
+    const rutaNosotros = useMatch('/nosotros');
+    const conectado = demostracion || Boolean(rutaConectada || (usuario && (rutaBlog || rutaNosotros)));
     const vendedor = conectado && usuario?.rol === 'VENDEDOR';
     const productos = conectado ? RUTA_CATALOGO_CONECTADO : '/productos';
 
@@ -24,6 +26,8 @@ export default function Footer() {
                     {vendedor ? <Link to={RUTA_ORDENES_CONECTADAS}>Consultar órdenes</Link> : <>
                         <Link to={conectado ? productos + '/categorias' : '/categorias'}>Ver categorías</Link>
                         <Link to={conectado ? productos + '/ofertas' : '/ofertas'}>Ver promociones</Link>
+                        <Link to="/nosotros">Nosotros</Link>
+                        <Link to="/blog">Blog</Link>
                     </>}
                 </div>
                 {!vendedor && <div>

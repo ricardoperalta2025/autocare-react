@@ -82,9 +82,7 @@ function App() {
 
                     {!demostracion && <>
                         <Route path="/" element={<Index />} />
-                        <Route path="/blog" element={<Blog />} />
                         <Route path="/login" element={<Login />} />
-                        <Route path="/nosotros" element={<Nosotros />} />
                         <Route path="/register" element={<Register />} />
                         <Route path="/productos" element={<Productos />} />
                         <Route path="/contacto" element={<Contacto />} />
@@ -92,6 +90,9 @@ function App() {
                     </>}
 
                     <Route element={<RutaConectada roles={ROLES_TIENDA} publica />}>
+                        <Route path="/nosotros" element={<Nosotros />} />
+                        <Route path="/blog" element={<Blog />} />
+                        <Route path="/blog/:id" element={<BlogDetalle />} />
                         <Route path={RUTA_LOGIN_CONECTADO} element={<Login conectado />} />
                         <Route path={RUTA_REGISTRO_CONECTADO} element={<Register conectado />} />
                     </Route>
@@ -154,7 +155,6 @@ function App() {
                         <Route path="/perfil" element={<Perfil />} />
                         <Route path="/categorias" element={<Categorias />} />
                         <Route path="/ofertas" element={<Ofertas />} />
-                        <Route path="/blog/:id" element={<BlogDetalle />} />
                     </>}
                     {demostracion && <Route path="*" element={<Navigate to={RUTA_CATALOGO_CONECTADO} replace />} />}
 

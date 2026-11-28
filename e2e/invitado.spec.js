@@ -217,14 +217,42 @@ test('INVITADO · compra local con rechazo simulado y acceso a boleta de invitad
 
 test('INVITADO · consulta el artículo y la información de la tienda', async ({ page }) => {
     await page.goto('/');
-    const nav = page.getByRole('navigation');
+    const nav = page.getByRole('navigation', { name: 'Navegación principal' });
     await nav.getByRole('link', { name: 'Nosotros' }).click();
     await expect(page.getByRole('heading', { name: 'Sobre Nosotros' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Misión' })).toBeVisible();
     await nav.getByRole('link', { name: 'Blog', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Blog AutoCarePro' })).toBeVisible();
-    const tarjeta = page.locator('main .card').first();
-    const titulo = await tarjeta.getByRole('heading').textContent();
-    await tarjeta.getByRole('link', { name: 'Leer artículo' }).click();
-    await expect(page.getByRole('heading', { name: titulo.trim() })).toBeVisible();
-    await expect(page).toHaveURL(/\/blog\/\d+$/);
+    const tarjeta = page.getByRole('article').first();
+    const titulo = '5 consejos para cuidar tu vehículo';
+    for (const nombre of [titulo, 'Abrir artículo: ' + titulo, 'Leer más']) {
+        await tarjeta.getByRole('link', { name: nombre, exact: true }).click();
+        await expect(page.getByRole('heading', { name: titulo, level: 1 })).toBeVisible();
+        await expect(page).toHaveURL(/\/blog\/1$/);
+        await page.getByRole('link', { name: 'Volver al blog' }).click();
+    }
+    await page.getByRole('contentinfo').getByRole('link', { name: 'Nosotros' }).click();
+    await expect(page.getByRole('heading', { name: 'Sobre Nosotros' })).toBeVisible();
+});
+
+test('INVITADO · navega al blog desde el menú móvil y recarga las tres páginas', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/nosotros');
+    await page.reload();
+    await expect(page.getByRole('heading', { name: 'Sobre Nosotros' })).toBeVisible();
+    const nav = page.getByRole('navigation', { name: 'Navegación principal' });
+    const menu = nav.getByRole('button', { name: 'Abrir navegación' });
+    await menu.click();
+    await expect(nav.getByRole('link', { name: 'Nosotros' })).toBeVisible();
+    await nav.getByRole('link', { name: 'Blog', exact: true }).click();
+    await expect(menu).toHaveAttribute('aria-expanded', 'false');
+    await page.reload();
+    await expect(page).toHaveURL(/\/blog$/);
+    await expect(page.getByRole('heading', { name: 'Blog AutoCarePro' })).toBeVisible();
+    await page.getByRole('article').last().getByRole('link', { name: 'Leer más' }).click();
+    await page.reload();
+    await expect(page).toHaveURL(/\/blog\/2$/);
+    await expect(page.getByRole('heading', { name: '¿Por qué es importante cambiar el aceite?' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Volver al blog' })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });

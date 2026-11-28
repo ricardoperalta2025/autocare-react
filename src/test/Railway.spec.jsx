@@ -63,6 +63,37 @@ describe('Demostración Railway', () => {
         expect(screen.queryByRole('link', { name: 'Volver al simulador' })).toBeNull();
     });
 
+    for (const [ruta, titulo] of [
+        ['/nosotros', 'Sobre Nosotros'],
+        ['/blog', 'Blog AutoCarePro'],
+        ['/blog/1', '5 consejos para cuidar tu vehículo']
+    ]) {
+        it(`habilita el acceso público directo a ${ruta} en Railway`, async () => {
+            montar(ruta);
+            expect(await screen.findByRole('heading', { name: titulo, level: 1 })).toBeTruthy();
+            expect(window.location.pathname).toBe(ruta);
+            const menu = screen.getByRole('navigation', { name: 'Navegación principal' });
+            for (const region of [menu, screen.getByRole('contentinfo')]) {
+                expect(within(region).getByRole('link', { name: 'Nosotros' }).getAttribute('href')).toBe('/nosotros');
+                expect(within(region).getByRole('link', { name: 'Blog' }).getAttribute('href')).toBe('/blog');
+            }
+        });
+    }
+
+    it('restringe la ruta y los enlaces editoriales para VENDEDOR en Railway', async () => {
+        montar('/blog/1', { rol: 'VENDEDOR' });
+        expect((await screen.findByRole('alert')).textContent).toContain('Tu rol no tiene permiso');
+        expect(screen.queryByRole('link', { name: 'Blog', exact: true })).toBeNull();
+        expect(screen.queryByRole('link', { name: 'Nosotros', exact: true })).toBeNull();
+        expect(screen.queryByRole('link', { name: 'Carrito' })).toBeNull();
+    });
+
+    it('permite a CLIENTE abrir los artículos en Railway', async () => {
+        montar('/blog/2', { rol: 'CLIENTE' });
+        expect(await screen.findByRole('heading', { name: '¿Por qué es importante cambiar el aceite?' })).toBeTruthy();
+        expect(screen.getByRole('link', { name: 'Volver al blog' }).getAttribute('href')).toBe('/blog');
+    });
+
     it('permite el login y mantiene el registro cerrado ante una configuración ambigua', async () => {
         const red = montar(RUTA_REGISTRO_CONECTADO, { configuracion: { registro: 'true', escrituras: null } });
         await screen.findByText('El registro no está disponible por el momento.');
